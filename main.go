@@ -41,17 +41,23 @@ func main() {
 }
 
 func parseFlags() {
-	flag.StringVar(&outPath, "out", "", "path for generated file")
+	flag.StringVar(&outPath, "out", "", "path for the generated file")
 	flag.StringVar(&pkgName, "pkg", "", "name of the go package to use")
 	flag.StringVar(&contractName, "name", "", "name of the contract")
 	flag.BoolVarP(&verbose, "verbose", "v", false, "")
 	help := flag.BoolP("help", "h", false, "print help")
+	version := flag.Bool("version", false, "print version")
 
 	flag.Parse()
 
-	if *help {
+	if *help || flag.NArg()+flag.NFlag() == 0 {
 		printUsage()
-		os.Exit(1)
+		os.Exit(0)
+	}
+
+	if *version {
+		fmt.Printf("tzgen version %s\n", Version)
+		os.Exit(0)
 	}
 
 	if pkgName == "" {
