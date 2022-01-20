@@ -30,31 +30,14 @@ func main() {
 		logFatal(err)
 	}
 
-	n, err := generate(micheline)
+	out, err := codegen.Generate(micheline, pkgName, contractName)
 	if err != nil {
 		logFatal(err)
 	}
 
-	fmt.Printf("%d bytes written\n", n)
-}
-
-func generate(input []byte) (int, error) {
-	out, err := codegen.Generate(input, pkgName, contractName)
-	if err != nil {
-		return 0, err
+	if err := writeOutput(out); err != nil {
+		logFatal(err)
 	}
-
-	outFile, err := os.Create(outPath)
-	if err != nil {
-		return 0, err
-	}
-
-	n, err := outFile.Write(out)
-	if err != nil {
-		return 0, err
-	}
-
-	return n, nil
 }
 
 func parseFlags() {
@@ -71,9 +54,6 @@ func parseFlags() {
 		os.Exit(1)
 	}
 
-	if outPath == "" {
-		exitBadArgs("Output file is missing")
-	}
 	if pkgName == "" {
 		exitBadArgs("Package name is missing")
 	}
@@ -117,6 +97,27 @@ func getInput() (input []byte, err error) {
 	}
 
 	return micheline, nil
+}
+
+func writeOutput(output []byte) error {
+	if outPath == "" {
+		_, err := os.Stdout.Write(output)
+		return err
+	}
+
+	outFile, err := os.Create(outPath)
+	if err != nil {
+		return err
+	}
+
+	n, err := outFile.Write(output)
+	if err != nil {
+		return err
+	}
+
+	log.Infof("%d bytes written\n", n)
+
+	return nil
 }
 
 func configLog(verbose bool) {
