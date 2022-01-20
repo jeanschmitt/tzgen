@@ -8,7 +8,7 @@ import (
     "math/big"
 
     "github.com/jeanschmitt/tzgen/bind"
-    "github.com/jeanschmitt/tzgen/prim"
+    "github.com/jeanschmitt/tzgen/pkg/prim"
     "github.com/completium/go-tezos/v4/rpc"
 )
 

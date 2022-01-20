@@ -6,8 +6,8 @@ import (
 	"strconv"
 
 	"blockwatch.cc/tzgo/micheline"
-	"github.com/echa/log"
 	"github.com/pkg/errors"
+	log "github.com/sirupsen/logrus"
 )
 
 // parseEntrypoints add entrypoints found in script, in the ParseContext.
@@ -27,8 +27,7 @@ func parseEntrypoints(c *ParseContext, script *micheline.Script) error {
 	sort.SliceStable(lEntrypoints, func(i, j int) bool { return lEntrypoints[i].Id < lEntrypoints[j].Id })
 
 	for _, e := range lEntrypoints {
-		err := parseEntrypoint(c, &e)
-		if err != nil {
+		if err := parseEntrypoint(c, &e); err != nil {
 			return errors.Wrapf(err, "failed to parse `%s` entrypoint", e.Call)
 		}
 	}

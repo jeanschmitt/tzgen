@@ -2,29 +2,20 @@ package codegen
 
 import "strings"
 
+type Formatter interface {
+	Method(original string) normalizedName
+	Struct(original string) normalizedName
+	Argument(original string) normalizedName
+	Field(original string) normalizedName
+}
+
+var (
+	GoFormat = goFormat{}
+)
+
 type normalizedName struct {
 	Original   string
 	Normalized string
-}
-
-type goFormat struct{}
-
-var GoFormat = goFormat{}
-
-func (g goFormat) Method(original string) normalizedName {
-	return normalize(original, ToPascalCase)
-}
-
-func (g goFormat) Struct(original string) normalizedName {
-	return normalize(original, ToPascalCase)
-}
-
-func (g goFormat) Argument(original string) normalizedName {
-	return normalize(original, ToCamelCase)
-}
-
-func (g goFormat) Field(original string) normalizedName {
-	return normalize(original, ToCamelCase)
 }
 
 func normalize(original string, normalizeFunc func(string) string) normalizedName {

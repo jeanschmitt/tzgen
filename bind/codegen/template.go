@@ -11,7 +11,7 @@ import (
 )
 
 // goTemplate contains the go contract template.
-//go:embed contract.gotpl
+//go:embed golang.gotpl
 var goTemplate []byte
 
 type Data struct {
@@ -59,14 +59,12 @@ func (d *Data) Render(gofmt bool) ([]byte, error) {
 	}
 
 	// run gofmt
-	var out []byte
+	out := buffer.Bytes()
 	if gofmt {
-		out, err = format.Source(buffer.Bytes())
+		out, err = format.Source(out)
 		if err != nil {
 			return nil, errors.Wrap(err, "failed to format go code")
 		}
-	} else {
-		out = buffer.Bytes()
 	}
 
 	return out, nil

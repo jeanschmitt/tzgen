@@ -10,7 +10,7 @@ import (
 )
 
 func Parse(rawMicheline []byte, contractName string) (Contract, []*StructType, []*UnionType, []*OptionType, error) {
-	c := &ParseContext{}
+	c := &ParseContext{fmt: GoFormat}
 
 	michelineBuf := new(bytes.Buffer)
 	if err := json.Compact(michelineBuf, rawMicheline); err != nil {
@@ -42,7 +42,7 @@ type ParseContext struct {
 	options     []*OptionType
 	counter     int
 
-	fmt goFormat
+	fmt Formatter
 }
 
 func (c *ParseContext) inc() int {

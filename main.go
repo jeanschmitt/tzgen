@@ -2,57 +2,99 @@ package main
 
 import (
 	"fmt"
+	"io"
 	"os"
 	"path"
 
+	"github.com/pkg/errors"
+	log "github.com/sirupsen/logrus"
 	flag "github.com/spf13/pflag"
 
 	"github.com/jeanschmitt/tzgen/bind/codegen"
 )
 
+// CLI args
+var (
+	outPath      string
+	pkgName      string
+	contractName string
+	verbose      bool
+)
+
 func main() {
-	inFile, outFile, pkgName, contract := getOptions()
+	parseFlags()
+	configLog(verbose)
 
-	micheline, err := os.ReadFile(inFile)
+	micheline, err := getInput()
 	if err != nil {
-		panic(err)
+		logFatal(err)
 	}
 
-	out, err := codegen.Generate(micheline, pkgName, contract)
+	n, err := generate(micheline)
 	if err != nil {
-		panic(err)
-	}
-
-	outF, err := os.Create(outFile)
-	if err != nil {
-		panic(err)
-	}
-
-	n, err := outF.Write(out)
-	if err != nil {
-		panic(err)
+		logFatal(err)
 	}
 
 	fmt.Printf("%d bytes written\n", n)
 }
 
-var forbiddenInputExt = []string{
-	".go",
+func generate(input []byte) (int, error) {
+	out, err := codegen.Generate(input, pkgName, contractName)
+	if err != nil {
+		return 0, err
+	}
+
+	outFile, err := os.Create(outPath)
+	if err != nil {
+		return 0, err
+	}
+
+	n, err := outFile.Write(out)
+	if err != nil {
+		return 0, err
+	}
+
+	return n, nil
 }
 
-func getOptions() (input, goOutput, pkgName, contract string) {
-	goOut := flag.String("out", "", "path for generated file")
-	packageName := flag.String("pkg", "", "name of the go package to use")
-	contractName := flag.String("name", "", "name of the contract")
-	_ = flag.BoolP("verbose", "v", false, "")
+func parseFlags() {
+	flag.StringVar(&outPath, "out", "", "path for generated file")
+	flag.StringVar(&pkgName, "pkg", "", "name of the go package to use")
+	flag.StringVar(&contractName, "name", "", "name of the contract")
+	flag.BoolVarP(&verbose, "verbose", "v", false, "")
 	help := flag.BoolP("help", "h", false, "print help")
 
 	flag.Parse()
 
 	if *help {
-		printHelp()
+		printUsage()
 		os.Exit(1)
 	}
+
+	if outPath == "" {
+		exitBadArgs("Output file is missing")
+	}
+	if pkgName == "" {
+		exitBadArgs("Package name is missing")
+	}
+	if contractName == "" {
+		exitBadArgs("Contract name is missing")
+	}
+}
+
+func getInput() (input []byte, err error) {
+	fi, _ := os.Stdin.Stat()
+
+	if fi.Mode()&os.ModeCharDevice == 0 {
+		input, err = io.ReadAll(os.Stdin)
+		if err != nil {
+			return nil, errors.Wrap(err, "failed to read from standard input")
+		}
+		return input, nil
+	}
+
+	// If we are not using piped input, the micheline code is read from a file provided
+	// as cli argument.
 
 	if flag.NArg() != 1 {
 		if flag.NArg() == 0 {
@@ -61,28 +103,44 @@ func getOptions() (input, goOutput, pkgName, contract string) {
 			exitBadArgs("Unexpected positional parameter")
 		}
 	}
-	if *goOut == "" {
-		exitBadArgs("Output file is missing")
-	}
-	if *packageName == "" {
-		exitBadArgs("Package name is missing")
-	}
-	if *contractName == "" {
-		exitBadArgs("Contract name is missing")
-	}
 
 	inputFile := flag.Arg(0)
 	inputExt := path.Ext(inputFile)
 
 	if stringInSlice(inputExt, forbiddenInputExt) {
-		fmt.Printf("Forbidden input extension: %s\n", inputExt)
-		os.Exit(1)
+		return nil, errors.Errorf("Forbidden input extension: %s\n", inputExt)
 	}
 
-	return inputFile, *goOut, *packageName, *contractName
+	micheline, err := os.ReadFile(inputFile)
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to read input file")
+	}
+
+	return micheline, nil
 }
 
-func printHelp() {
+func configLog(verbose bool) {
+	log.SetFormatter(&log.TextFormatter{})
+
+	level := log.InfoLevel
+	if verbose {
+		level = log.TraceLevel
+	}
+	log.SetLevel(level)
+}
+
+func logFatal(err error) {
+	if err == nil {
+		return
+	}
+	log.Fatalf("Fatal error: %v", err)
+}
+
+var forbiddenInputExt = []string{
+	".go",
+}
+
+func printUsage() {
 	fmt.Println(`Usage:
 	tzgen --out <out file> --pkg <package> --name <contract name> <input file>
 	`)
@@ -91,7 +149,7 @@ func printHelp() {
 
 func exitBadArgs(reason string) {
 	fmt.Println(reason)
-	printHelp()
+	printUsage()
 	os.Exit(1)
 }
 
