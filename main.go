@@ -10,7 +10,7 @@ import (
 	log "github.com/sirupsen/logrus"
 	flag "github.com/spf13/pflag"
 
-	"github.com/jeanschmitt/tzgen/bind/codegen"
+	"github.com/jeanschmitt/tzgen/internal/codegen"
 )
 
 // CLI args
