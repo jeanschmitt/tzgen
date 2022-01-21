@@ -3,6 +3,8 @@ package main
 import (
 	"fmt"
 	"io"
+	"net/http"
+	"net/url"
 	"os"
 	"path"
 
@@ -15,10 +17,13 @@ import (
 
 // CLI args
 var (
-	outPath      string
-	pkgName      string
-	contractName string
-	verbose      bool
+	outPath         string
+	pkgName         string
+	contractName    string
+	nodeURL         string
+	chain           string
+	contractAddress string
+	verbose         bool
 )
 
 func main() {
@@ -44,6 +49,9 @@ func parseFlags() {
 	flag.StringVar(&outPath, "out", "", "path for the generated file")
 	flag.StringVar(&pkgName, "pkg", "", "name of the go package to use")
 	flag.StringVar(&contractName, "name", "", "name of the contract")
+	flag.StringVar(&nodeURL, "node", "", "rpc node used to retrieve the script")
+	flag.StringVar(&chain, "chain", "main", "name of the contract")
+	flag.StringVar(&contractAddress, "address", "", "address of the contract")
 	flag.BoolVarP(&verbose, "verbose", "v", false, "")
 	help := flag.BoolP("help", "h", false, "print help")
 	version := flag.Bool("version", false, "print version")
@@ -77,6 +85,16 @@ func getInput() (input []byte, err error) {
 			return nil, errors.Wrap(err, "failed to read from standard input")
 		}
 		return input, nil
+	}
+
+	if contractAddress != "" {
+		if nodeURL == "" {
+			exitBadArgs("--node is required when using --address")
+		}
+		if chain == "" {
+			exitBadArgs("--chain cannot be empty")
+		}
+		return getScriptFromNode(nodeURL, chain, contractAddress)
 	}
 
 	// If we are not using piped input, the micheline code is read from a file provided
@@ -124,6 +142,30 @@ func writeOutput(output []byte) error {
 	log.Infof("%d bytes written\n", n)
 
 	return nil
+}
+
+func getScriptFromNode(node, chain, address string) ([]byte, error) {
+	u, err := scriptURL(node, chain, address)
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to build url")
+	}
+
+	res, err := http.Get(u.String())
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to do get request")
+	}
+	defer res.Body.Close()
+
+	return io.ReadAll(res.Body)
+}
+
+func scriptURL(node, chain, address string) (*url.URL, error) {
+	u, err := url.Parse(node)
+	if err != nil {
+		return nil, err
+	}
+
+	return u.Parse(fmt.Sprintf("chains/%s/blocks/head/context/contracts/%s/script", chain, address))
 }
 
 func configLog(verbose bool) {
