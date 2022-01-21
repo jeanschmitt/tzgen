@@ -7,42 +7,42 @@ import (
 	"strings"
 )
 
-func unitV() string {
+func UnitV() string {
 	return `{"prim":"Unit"}`
 }
 
-func intV(i *big.Int) string {
+func IntV(i *big.Int) string {
 	return `{"int":"` + i.String() + `"}`
 }
 
-func stringV(s string) string {
+func StringV(s string) string {
 	return `{"string":"` + s + `"}`
 }
 
-func bytesV(b []byte) string {
+func BytesV(b []byte) string {
 	return `{"bytes":"` + hex.EncodeToString(b) + `"}`
 }
 
-func pairV(arg0, arg1 string) string {
+func PairV(arg0, arg1 string) string {
 	return `{"prim":"Pair","args":[` + arg0 + `,` + arg1 + `]}`
 }
 
-func listV(args ...string) string {
+func ListV(args ...string) string {
 	return "[" + strings.Join(args, ",") + "]"
 }
 
-func unionV(arg string, branch UnionBranch) string {
+func UnionV(arg string, branch UnionBranch) string {
 	if branch == LeftBranch {
 		return `{"prim":"Left","args":[` + arg + `]}`
 	}
 	return `{"prim":"Right","args":[` + arg + `]}`
 }
 
-func someV(arg string) string {
+func SomeV(arg string) string {
 	return `{"prim":"Some","args":[` + arg + `]}`
 }
 
-func noneV() string {
+func NoneV() string {
 	return `"{prim":"None"}`
 }
 
@@ -59,7 +59,7 @@ func NewInt(i *big.Int) Int {
 }
 
 func (i Int) ToPrim() string {
-	return intV(i.i)
+	return IntV(i.i)
 }
 
 type String struct {
@@ -71,7 +71,7 @@ func NewString(s string) String {
 }
 
 func (s String) ToPrim() string {
-	return stringV(s.s)
+	return StringV(s.s)
 }
 
 type Bytes struct {
@@ -83,7 +83,7 @@ func NewBytes(b []byte) Bytes {
 }
 
 func (b Bytes) ToPrim() string {
-	return bytesV(b.b)
+	return BytesV(b.b)
 }
 
 // region union

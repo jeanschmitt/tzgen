@@ -14,15 +14,15 @@ func Builder() *builder {
 }
 
 func (b *builder) Int(i *big.Int) *builder {
-	return b.addArg(intV(i))
+	return b.addArg(IntV(i))
 }
 
 func (b *builder) String(s string) *builder {
-	return b.addArg(stringV(s))
+	return b.addArg(StringV(s))
 }
 
 func (b *builder) Bytes(v []byte) *builder {
-	return b.addArg(bytesV(v))
+	return b.addArg(BytesV(v))
 }
 
 // Address can be encoded as string or bytes; we use string for readability.
@@ -61,31 +61,31 @@ func (b *builder) List(items interface{}) *builder {
 		strs[i] = primer.ToPrim()
 	}
 
-	return b.addArg(listV(strs...))
+	return b.addArg(ListV(strs...))
 }
 
 func (b *builder) ListI(items ...*big.Int) *builder {
 	strs := make([]string, len(items))
 	for i, item := range items {
-		strs[i] = intV(item)
+		strs[i] = IntV(item)
 	}
-	return b.addArg(listV(strs...))
+	return b.addArg(ListV(strs...))
 }
 
 func (b *builder) ListS(items ...string) *builder {
 	strs := make([]string, len(items))
 	for i, item := range items {
-		strs[i] = stringV(item)
+		strs[i] = StringV(item)
 	}
-	return b.addArg(listV(strs...))
+	return b.addArg(ListV(strs...))
 }
 
 func (b *builder) ListB(items ...[]byte) *builder {
 	strs := make([]string, len(items))
 	for i, item := range items {
-		strs[i] = bytesV(item)
+		strs[i] = BytesV(item)
 	}
-	return b.addArg(listV(strs...))
+	return b.addArg(ListV(strs...))
 }
 
 func (b *builder) ListP(items ...Primer) *builder {
@@ -93,7 +93,7 @@ func (b *builder) ListP(items ...Primer) *builder {
 	for i, item := range items {
 		strs[i] = item.ToPrim()
 	}
-	return b.addArg(listV(strs...))
+	return b.addArg(ListV(strs...))
 }
 
 func (b *builder) Union(val interface{}, branch UnionBranch) *builder {
@@ -101,18 +101,18 @@ func (b *builder) Union(val interface{}, branch UnionBranch) *builder {
 
 	switch v := val.(type) {
 	case *big.Int:
-		inner = intV(v)
+		inner = IntV(v)
 	case string:
-		inner = stringV(v)
+		inner = StringV(v)
 	case []byte:
-		inner = bytesV(v)
+		inner = BytesV(v)
 	case Primer:
 		inner = v.ToPrim()
 	default:
 		panic("union inner type should be either *big.Int, string, []byte or Primer")
 	}
 
-	return b.addArg(unionV(inner, branch))
+	return b.addArg(UnionV(inner, branch))
 }
 
 func (b *builder) Some(val interface{}) *builder {
@@ -120,27 +120,27 @@ func (b *builder) Some(val interface{}) *builder {
 
 	switch v := val.(type) {
 	case *big.Int:
-		inner = intV(v)
+		inner = IntV(v)
 	case string:
-		inner = stringV(v)
+		inner = StringV(v)
 	case []byte:
-		inner = bytesV(v)
+		inner = BytesV(v)
 	case Primer:
 		inner = v.ToPrim()
 	default:
 		panic("option inner type should be either *big.Int, string, []byte or Primer")
 	}
 
-	return b.addArg(someV(inner))
+	return b.addArg(SomeV(inner))
 }
 
 func (b *builder) None() *builder {
-	return b.addArg(noneV())
+	return b.addArg(NoneV())
 }
 
 func (b *builder) Finish() string {
 	if len(b.args) == 0 {
-		return unitV()
+		return UnitV()
 	}
 	return recPairs(b.args)
 }
@@ -154,5 +154,5 @@ func recPairs(args []string) string {
 	if len(args) == 1 {
 		return args[0]
 	}
-	return pairV(args[0], recPairs(args[1:]))
+	return PairV(args[0], recPairs(args[1:]))
 }
