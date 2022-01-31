@@ -1,4 +1,4 @@
 .PHONY: build
 
 build:
-	go build -o ./build/tzgen -s -ldflags "-X main.Version=`git tag --sort=-version:refname`" .
+	go build -o ./build/tzgen -ldflags "-X 'main.Version=`git tag --sort=-version:refname | head -n 1`'" .
