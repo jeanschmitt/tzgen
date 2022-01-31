@@ -1,4 +1,8 @@
-tmp
-.vscode
-.idea
 /build
+tmp
+
+.vscode
+*.code-workspace
+.idea/
+
+.out

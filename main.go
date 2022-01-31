@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"github.com/jeanschmitt/tzgen/internal/generate"
 	"io"
 	"net/http"
 	"net/url"
@@ -11,8 +12,6 @@ import (
 	"github.com/pkg/errors"
 	log "github.com/sirupsen/logrus"
 	flag "github.com/spf13/pflag"
-
-	"github.com/jeanschmitt/tzgen/internal/codegen"
 )
 
 // CLI args
@@ -35,7 +34,7 @@ func main() {
 		logFatal(err)
 	}
 
-	out, err := codegen.Generate(micheline, pkgName, contractName)
+	out, err := generate.Generate(micheline, contractName, generate.NewGoMetadata(pkgName))
 	if err != nil {
 		logFatal(err)
 	}
