@@ -1,211 +1,154 @@
 package main
 
 import (
+	"bytes"
+	_ "embed"
 	"fmt"
 	"github.com/jeanschmitt/tzgen/internal/generate"
+	"github.com/jeanschmitt/tzgen/internal/parse"
+	flag "github.com/spf13/pflag"
 	"io"
+	"log"
 	"net/http"
 	"net/url"
 	"os"
-	"path"
-
-	"github.com/pkg/errors"
-	log "github.com/sirupsen/logrus"
-	flag "github.com/spf13/pflag"
 )
 
-// CLI args
+// input
 var (
-	outPath         string
-	pkgName         string
-	contractName    string
-	nodeURL         string
-	chain           string
-	contractAddress string
-	verbose         bool
+	nodeURL = flag.String("node", "https://hangzhounet.smartpy.io", "endpoint to use when using --address")
+	chain   = flag.String("chain", "main", "chain id to use when using --address")
+	address = flag.String("address", "", "address of the deployed contract")
+	inFile  = flag.StringP("infile", "i", "", "path for the micheline input file")
 )
+
+// output
+var (
+	contractName = flag.String("name", "", "name of the contract (and of the generated struct type)")
+	packageName  = flag.String("pkg", "", "package of the generated go file")
+	outFile      = flag.StringP("outfile", "o", "", "path to the output file. Prints to standard output if not provided")
+)
+
+// others
+var (
+	helpFlag    = flag.BoolP("help", "h", false, "print help")
+	versionFlag = flag.BoolP("version", "V", false, "show version")
+)
+
+//go:embed VERSION
+var Version string
 
 func main() {
-	parseFlags()
-	configLog(verbose)
-
-	micheline, err := getInput()
-	if err != nil {
-		logFatal(err)
+	if len(os.Args) <= 1 {
+		usage()
+		os.Exit(0)
 	}
-
-	out, err := generate.Generate(micheline, contractName, generate.NewGoMetadata(pkgName))
-	if err != nil {
-		logFatal(err)
-	}
-
-	if err := writeOutput(out); err != nil {
-		logFatal(err)
-	}
-}
-
-func parseFlags() {
-	flag.StringVar(&outPath, "out", "", "path for the generated file")
-	flag.StringVar(&pkgName, "pkg", "", "name of the go package to use")
-	flag.StringVar(&contractName, "name", "", "name of the contract")
-	flag.StringVar(&nodeURL, "node", "", "rpc node used to retrieve the script")
-	flag.StringVar(&chain, "chain", "main", "name of the contract")
-	flag.StringVar(&contractAddress, "address", "", "address of the contract")
-	flag.BoolVarP(&verbose, "verbose", "v", false, "")
-	help := flag.BoolP("help", "h", false, "print help")
-	version := flag.Bool("version", false, "print version")
-
 	flag.Parse()
-
-	if *help || flag.NArg()+flag.NFlag() == 0 {
-		printUsage()
+	if *helpFlag {
+		usage()
 		os.Exit(0)
 	}
-
-	if *version {
-		fmt.Printf("tzgen version %s\n", Version)
+	if *versionFlag {
+		fmt.Println("tzgen version", Version)
 		os.Exit(0)
 	}
+	validateArgs()
 
-	if pkgName == "" {
-		exitBadArgs("Package name is missing")
+	script := getInput()
+
+	contract, structs, unions, err := parse.Parse(bytes.NewReader(script), *contractName)
+	handleErr(err)
+
+	data := generate.Data{
+		Contract: contract,
+		Structs:  structs,
+		Unions:   unions,
+		Address:  *address,
+		Package:  *packageName,
 	}
-	if contractName == "" {
-		exitBadArgs("Contract name is missing")
+
+	out, err := data.Render()
+	handleErr(err)
+
+	processOutput(out)
+}
+
+func validateArgs() {
+	if *inFile != "" && *address != "" {
+		badArgs("--address and --infile are mutually exclusive")
+	}
+	if *inFile == "" && *address == "" {
+		badArgs("no input provided: please provide --address or --infile")
+	}
+	if *contractName == "" {
+		// Note: we may implement name resolution with TZIP-16 in the future
+		badArgs("--name is required")
+	}
+	if *packageName == "" {
+		// Note: it could be guessed from directory
+		badArgs("--pkg is required")
 	}
 }
 
-func getInput() (input []byte, err error) {
-	fi, _ := os.Stdin.Stat()
+func getInput() []byte {
+	if *inFile != "" {
+		data, err := os.ReadFile(*inFile)
+		handleErr(err)
 
-	if fi.Mode()&os.ModeCharDevice == 0 {
-		input, err = io.ReadAll(os.Stdin)
-		if err != nil {
-			return nil, errors.Wrap(err, "failed to read from standard input")
-		}
-		return input, nil
+		return data
+	}
+	if *address != "" {
+		res, err := http.Get(scriptURL())
+		handleErr(err)
+		defer res.Body.Close()
+
+		data, err := io.ReadAll(res.Body)
+		handleErr(err)
+		return data
 	}
 
-	if contractAddress != "" {
-		if nodeURL == "" {
-			exitBadArgs("--node is required when using --address")
-		}
-		if chain == "" {
-			exitBadArgs("--chain cannot be empty")
-		}
-		return getScriptFromNode(nodeURL, chain, contractAddress)
-	}
-
-	// If we are not using piped input, the micheline code is read from a file provided
-	// as cli argument.
-
-	if flag.NArg() != 1 {
-		if flag.NArg() == 0 {
-			exitBadArgs("Input file is missing")
-		} else {
-			exitBadArgs("Unexpected positional parameter")
-		}
-	}
-
-	inputFile := flag.Arg(0)
-	inputExt := path.Ext(inputFile)
-
-	if stringInSlice(inputExt, forbiddenInputExt) {
-		return nil, errors.Errorf("Forbidden input extension: %s\n", inputExt)
-	}
-
-	micheline, err := os.ReadFile(inputFile)
-	if err != nil {
-		return nil, errors.Wrap(err, "failed to read input file")
-	}
-
-	return micheline, nil
+	panic("args were not validated")
 }
 
-func writeOutput(output []byte) error {
-	if outPath == "" {
-		_, err := os.Stdout.Write(output)
-		return err
-	}
-
-	outFile, err := os.Create(outPath)
-	if err != nil {
-		return err
-	}
-
-	n, err := outFile.Write(output)
-	if err != nil {
-		return err
-	}
-
-	log.Infof("%d bytes written\n", n)
-
-	return nil
-}
-
-func getScriptFromNode(node, chain, address string) ([]byte, error) {
-	u, err := scriptURL(node, chain, address)
-	if err != nil {
-		return nil, errors.Wrap(err, "failed to build url")
-	}
-
-	res, err := http.Get(u.String())
-	if err != nil {
-		return nil, errors.Wrap(err, "failed to do get request")
-	}
-	defer res.Body.Close()
-
-	return io.ReadAll(res.Body)
-}
-
-func scriptURL(node, chain, address string) (*url.URL, error) {
-	u, err := url.Parse(node)
-	if err != nil {
-		return nil, err
-	}
-
-	return u.Parse(fmt.Sprintf("chains/%s/blocks/head/context/contracts/%s/script", chain, address))
-}
-
-func configLog(verbose bool) {
-	log.SetFormatter(&log.TextFormatter{})
-
-	level := log.InfoLevel
-	if verbose {
-		level = log.TraceLevel
-	}
-	log.SetLevel(level)
-}
-
-func logFatal(err error) {
-	if err == nil {
+func processOutput(out []byte) {
+	if *outFile == "" {
+		_, err := os.Stdout.Write(out)
+		handleErr(err)
 		return
 	}
-	log.Fatalf("Fatal error: %v", err)
+
+	err := os.WriteFile(*outFile, out, 0644)
+	handleErr(err)
 }
 
-var forbiddenInputExt = []string{
-	".go",
+func scriptURL() string {
+	u, err := url.Parse(*nodeURL)
+	handleErr(err)
+
+	path := fmt.Sprintf("chains/%s/blocks/head/context/contracts/%s/script", *chain, *address)
+	u, err = u.Parse(path)
+	handleErr(err)
+
+	return u.String()
 }
 
-func printUsage() {
+func usage() {
 	fmt.Println(`Usage:
-	tzgen --out <out file> --pkg <package> --name <contract name> <input file>
-	`)
+    tzgen [--help] [--version] [--outfile] [--name] [--pkg]
+          [--infile | --address] [--node] [--chain]
+
+Options:`)
 	flag.PrintDefaults()
 }
 
-func exitBadArgs(reason string) {
-	fmt.Println(reason)
-	printUsage()
-	os.Exit(1)
+func badArgs(msg string) {
+	fmt.Println("Invalid arguments:", msg)
+	usage()
+	os.Exit(0)
 }
 
-func stringInSlice(str string, slice []string) bool {
-	for _, i := range slice {
-		if str == i {
-			return true
-		}
+func handleErr(err error) {
+	if err != nil {
+		log.Fatal("Fatal error:", err)
 	}
-	return false
 }

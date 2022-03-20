@@ -1,9 +1,0 @@
-# Key files
-*.key
-*.csr
-*.crt
-*.pem
-
-# OSX specific files
-.DS_Store
-

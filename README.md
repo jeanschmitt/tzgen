@@ -2,20 +2,28 @@
 
 Go binding to Tezos smart contracts, using code generation.
 
-## Build
+## Installation
 
 ```bash
-make build
+go install github.com/jeanschmitt/tzgen@latest
 ```
 
 ## Usage
 
-```bash
-tzgen --out <out file> --pkg <package> --name <contract name> <input file>
-```
-
-It can also read from standard input:
+### From a deployed contract
 
 ```bash
-curl https://rpc.tzkt.io/mainnet/chains/main/blocks/head/context/contracts/KT1FvqJwEDWb1Gwc55Jd1jjTHRVWbYKUUpyq/script | tzgen --out <out file> --pkg <package> --name <contract name>
+tzgen --name Simple --pkg contracts --address KT1CiYNu9iJknnL31TXBWHCqRdFRh7jPWdzg -o ./contracts/Simple.go
 ```
+
+The endpoint and chain id are `https://hangzhounet.smartpy.io` and `main` by default, but can be overridden with `--node` and `--chain`.
+
+### From a micheline file
+
+```bash
+tzgen --name Simple --pkg contracts -i ./Simple.json -o ./contracts/Simple.go
+```
+
+## Note
+
+This tool is still under development, so the generated bindings don't cover every smart contract yet.

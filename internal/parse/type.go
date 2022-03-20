@@ -2,10 +2,10 @@ package parse
 
 import (
 	"blockwatch.cc/tzgo/micheline"
-	"github.com/jeanschmitt/tzgen/pkg/types"
+	"github.com/jeanschmitt/tzgen/pkg/ast/types"
 )
 
-func (p *Parser) parseType(t *micheline.Typedef) (types.Type, error) {
+func (p *parser) parseType(t *micheline.Typedef) (types.Type, error) {
 	// Unwrap optional
 	if t.Optional {
 		typ, err := p.parseType(&micheline.Typedef{Name: t.Name, Type: t.Type, Args: t.Args})
@@ -79,20 +79,40 @@ func (p *Parser) parseType(t *micheline.Typedef) (types.Type, error) {
 		case types.TypeMap:
 			return &types.Map{Key: type1, Value: type2}, nil
 		case types.TypeBigmap:
-			return &types.BigMap{Key: type1, Value: type2}, nil
+			return &types.Bigmap{Key: type1, Value: type2}, nil
 		}
 	}
 	if t.Type == types.TypeStruct {
-		var fieldTypes []types.Param
-		for _, a := range t.Args {
-			typ, err := p.parseType(&a)
-			if err != nil {
-				return nil, err
-			}
-			fieldTypes = append(fieldTypes, types.Param{Name: a.Name, Type: typ})
-		}
-		return p.registerStruct(&types.Struct{Fields: fieldTypes}), nil
+		return p.parseStruct(t, true)
 	}
 
 	return nil, nil
+}
+
+func (p *parser) parseStruct(typedef *micheline.Typedef, register bool) (*types.Struct, error) {
+	var fieldTypes []types.Param
+	for _, a := range typedef.Args {
+		typ, err := p.parseType(&a)
+		if err != nil {
+			return nil, err
+		}
+		name := a.Name
+		if startsWithInt(name) {
+			name = "field" + name
+		}
+		fieldTypes = append(fieldTypes, types.Param{Name: name, Type: typ})
+	}
+
+	st := &types.Struct{Fields: fieldTypes}
+
+	// Without annotation, structs gets a @-prefixed auto generated name.
+	// We want to remove it, so we get our auto-generated name.
+	if len(typedef.Name) > 0 && typedef.Name[0] != '@' {
+		st.Name = typedef.Name
+	}
+
+	if register {
+		return p.registerStruct(st), nil
+	}
+	return st, nil
 }

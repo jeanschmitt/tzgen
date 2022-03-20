@@ -3,30 +3,27 @@ package generate
 import (
 	"bytes"
 	_ "embed"
-	"github.com/jeanschmitt/tzgen/internal/parse"
-	"github.com/jeanschmitt/tzgen/pkg/types"
+	"github.com/jeanschmitt/tzgen/pkg/ast"
+	"github.com/jeanschmitt/tzgen/pkg/ast/types"
 	"github.com/pkg/errors"
+	"go/format"
+	"log"
 	"text/template"
 )
 
-// Data is the struct provided to the template.
+//go:embed contract.go.tmpl
+var goTemplate string
+
 type Data struct {
-	Contract *parse.Contract
+	Contract *ast.Contract
 	Structs  []*types.Struct
 	Unions   []*types.Union
-	// Metadata contains language-specific data.
-	// For example, it contains the package name in Go.
-	Metadata Metadata
+	Address  string
+	Package  string
 }
 
-// Templates
-var (
-	//go:embed contract.go.tmpl
-	goTemplate string
-)
-
-func (d *Data) Render(language Language) ([]byte, error) {
-	tpl, err := template.New(language.String()).Funcs(d.Metadata.Funcs()).Parse(goTemplate)
+func (d *Data) Render() ([]byte, error) {
+	tpl, err := template.New("contract").Funcs(funcMap).Parse(goTemplate)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to parse template")
 	}
@@ -37,15 +34,11 @@ func (d *Data) Render(language Language) ([]byte, error) {
 		return nil, errors.Wrap(err, "failed to execute template")
 	}
 
-	return buffer.Bytes(), nil
-}
+	out, err := format.Source(buffer.Bytes())
+	if err != nil {
+		log.Println(err)
+		out = buffer.Bytes()
+	}
 
-type Language string
-
-const (
-	GoLanguage Language = "go"
-)
-
-func (l Language) String() string {
-	return string(l)
+	return out, nil
 }

@@ -2,100 +2,118 @@ package parse
 
 import (
 	"blockwatch.cc/tzgo/micheline"
-	"bytes"
 	"encoding/json"
 	"fmt"
-	types "github.com/jeanschmitt/tzgen/pkg/types"
+	"github.com/jeanschmitt/tzgen/pkg/ast"
+	"github.com/jeanschmitt/tzgen/pkg/ast/types"
+	"github.com/pkg/errors"
+	"io"
+	"strconv"
 )
 
-func Parse(rawMicheline []byte, contractName string) (*Contract, []*types.Struct, []*types.Union, error) {
-	return NewParser(rawMicheline).Parse(contractName)
+func Parse(codeReader io.Reader, name string) (*ast.Contract, []*types.Struct, []*types.Union, error) {
+	code, err := io.ReadAll(codeReader)
+	if err != nil {
+		return nil, nil, nil, errors.Wrap(err, "failed to read code")
+	}
+
+	return newParser(code).parse(name)
 }
 
-type Parser struct {
-	script    *micheline.Script
-	micheline []byte
-	contract  *Contract
+type parser struct {
+	script   *micheline.Script
+	raw      []byte
+	contract *ast.Contract
 
-	structs map[[types.HashSize]byte]*types.Struct
+	counter int
+	structs []structWithHash
 	unions  []*types.Union
 }
 
-func NewParser(rawMicheline []byte) *Parser {
-	return &Parser{
-		micheline: rawMicheline,
+type structWithHash struct {
+	*types.Struct
+	hash [types.HashSize]byte
+}
+
+func newParser(raw []byte) *parser {
+	return &parser{
+		script:   micheline.NewScript(),
+		raw:      raw,
+		contract: new(ast.Contract),
 	}
 }
 
-func (p *Parser) Parse(contractName string) (*Contract, []*types.Struct, []*types.Union, error) {
-	var err error
-	p.micheline, err = compactJson(p.micheline)
+func (p *parser) parse(name string) (*ast.Contract, []*types.Struct, []*types.Union, error) {
+	err := json.Unmarshal(p.raw, &p.script)
 	if err != nil {
-		return nil, nil, nil, err
+		return nil, nil, nil, errors.Wrap(err, "failed to unmarshal micheline code")
 	}
 
-	// Init fields
-	p.script = micheline.NewScript()
-	p.contract = &Contract{
-		Name:      contractName,
-		Micheline: string(p.micheline),
-	}
-	p.structs = make(map[[types.HashSize]byte]*types.Struct)
+	p.contract.Name = name
+	p.contract.Micheline = string(p.raw)
 
-	if err = json.Unmarshal(p.micheline, &p.script); err != nil {
-		return nil, nil, nil, err
+	if err = p.parseEntrypoints(); err != nil {
+		return nil, nil, nil, errors.Wrap(err, "failed to parse entrypoints")
 	}
 
-	if err := p.entrypoints(); err != nil {
-		return nil, nil, nil, err
-	}
+	return p.contract, p.nameStructs(), p.unions, nil
+}
 
+func (p *parser) nameStructs() []*types.Struct {
 	var structs []*types.Struct
-	i := 0
-	for _, s := range p.structs {
+	for i, s := range p.structs {
 		// Give a name to the structs
-		s.Name = fmt.Sprintf("%sRecord%d", p.contract.Name, i)
-		structs = append(structs, s)
-		i++
+		if s.Name == "" {
+			s.Name = fmt.Sprintf("%s_record_%d", p.contract.Name, i)
+		} else {
+			newName := fmt.Sprintf("%s_%s", p.contract.Name, s.Name)
+			if p.structNameExists(newName) {
+				newName = newName + strconv.Itoa(i)
+			}
+			s.Name = newName
+		}
+		structs = append(structs, s.Struct)
 	}
-
-	for i, u := range p.unions {
-		u.Name = fmt.Sprintf("%sUnion%d", p.contract.Name, i)
-	}
-
-	return p.contract, structs, p.unions, nil
+	return structs
 }
 
-func compactJson(src []byte) ([]byte, error) {
-	dst := new(bytes.Buffer)
-	if err := json.Compact(dst, src); err != nil {
-		return nil, err
-	}
-	return dst.Bytes(), nil
+func (p *parser) inc() int {
+	c := p.counter
+	p.counter++
+	return c
 }
 
-func (p *Parser) registerStruct(newStruct *types.Struct) *types.Struct {
+func (p *parser) registerStruct(newStruct *types.Struct) *types.Struct {
 	// Avoid struct duplicates using their hash
 	var hash [types.HashSize]byte
 	copy(hash[:], newStruct.Hash()[:types.HashSize])
 	if found := p.lookupStruct(hash); found != nil {
 		return found
 	}
-	p.structs[hash] = newStruct
+	p.structs = append(p.structs, structWithHash{Struct: newStruct, hash: hash})
 	return newStruct
 }
 
-func (p *Parser) registerUnion(union *types.Union) *types.Union {
+func (p *parser) registerUnion(union *types.Union) *types.Union {
 	// We don't avoid duplication for unions
 	p.unions = append(p.unions, union)
 	return union
 }
 
-func (p *Parser) lookupStruct(hash [types.HashSize]byte) *types.Struct {
-	for h, s := range p.structs {
-		if h == hash {
-			return s
+func (p *parser) lookupStruct(hash [types.HashSize]byte) *types.Struct {
+	for _, s := range p.structs {
+		if s.hash == hash {
+			return s.Struct
 		}
 	}
 	return nil
+}
+
+func (p *parser) structNameExists(name string) bool {
+	for _, s := range p.structs {
+		if s.Name == name {
+			return true
+		}
+	}
+	return false
 }
