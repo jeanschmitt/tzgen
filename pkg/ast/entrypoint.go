@@ -7,10 +7,13 @@ import (
 
 type Entrypoint struct {
 	Name   string
-	Raw    *micheline.Entrypoint
+	Raw    *micheline.Entrypoint `json:"-"`
 	Params []*types.Param
 }
 
+// Getter is a read-only Entrypoint, with a return value.
+//
+// It is implemented with TZIP-4.
 type Getter struct {
 	Entrypoint
 	ReturnType types.Type

@@ -43,7 +43,6 @@ func (p *parser) parseEntrypoint(entrypoint *micheline.Entrypoint) (interface{},
 	}
 
 	nArgs := len(entrypoint.Typedef)
-	_ = nArgs
 	for i, arg := range entrypoint.Typedef {
 		if arg.Type == "unit" && i == 0 {
 			// continue because it can still be a getter
@@ -63,18 +62,23 @@ func (p *parser) parseEntrypoint(entrypoint *micheline.Entrypoint) (interface{},
 			return nil, errors.Wrap(err, "failed to parse type")
 		}
 
-		argName := arg.Name
-		if argName == "" || startsWithInt(argName) {
-			argName = arg.Type + strconv.Itoa(i)
-		}
-		originalType := arg.Type
-		if arg.Optional {
-			originalType = "option<" + originalType + ">"
-		}
-		e.Params = append(e.Params, &types.Param{Name: argName, Type: typ, OriginalType: originalType})
+		e.Params = append(e.Params, entrypointParam(&arg, typ, i))
 	}
 
 	return &e, nil
+}
+
+func entrypointParam(arg *micheline.Typedef, typ types.Type, i int) *types.Param {
+	argName := arg.Name
+	if argName == "" || startsWithInt(argName) {
+		argName = arg.Type + strconv.Itoa(i)
+	}
+	originalType := arg.Type
+	if arg.Optional {
+		originalType = "option<" + originalType + ">"
+	}
+
+	return &types.Param{Name: argName, Type: typ, OriginalType: originalType}
 }
 
 func startsWithInt(s string) bool {

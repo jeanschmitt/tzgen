@@ -49,11 +49,22 @@ func (p *parser) parse(name string) (*ast.Contract, []*types.Struct, []*types.Un
 		return nil, nil, nil, errors.Wrap(err, "failed to unmarshal micheline code")
 	}
 
+	// Remove storage
+	p.script.Storage = micheline.Prim{}
+	p.raw, err = json.Marshal(p.script)
+	if err != nil {
+		return nil, nil, nil, errors.Wrap(err, "failed to re-marshall script")
+	}
+
 	p.contract.Name = name
 	p.contract.Micheline = string(p.raw)
 
 	if err = p.parseEntrypoints(); err != nil {
 		return nil, nil, nil, errors.Wrap(err, "failed to parse entrypoints")
+	}
+
+	if p.contract.Storage, err = p.parseType(p.script.StorageType().TypedefPtr("Storage")); err != nil {
+		return nil, nil, nil, errors.Wrap(err, "failed to parse storage")
 	}
 
 	return p.contract, p.nameStructs(), p.unions, nil
