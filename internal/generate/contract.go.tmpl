@@ -25,11 +25,9 @@ import (
 	"blockwatch.cc/tzgo/micheline"
 	"blockwatch.cc/tzgo/rpc"
 	"blockwatch.cc/tzgo/tezos"
-
-	"github.com/jeanschmitt/tzgen/pkg/either"
-	"github.com/jeanschmitt/tzgen/pkg/option"
-	"github.com/jeanschmitt/tzgen/pkg/tzgoext"
 	"github.com/pkg/errors"
+
+	"github.com/jeanschmitt/tzgen/pkg/bind"
 )
 
 {{$contract := pascal .Contract.Name}}
@@ -44,6 +42,7 @@ import (
 type {{$contract}} struct {
 	*contract.Contract
 	builder {{$contract}}Builder
+	rpc *rpc.Client
 }
 
 // {{$contract}}Session is a generated binding to a Tezos smart contract, that will
@@ -62,6 +61,7 @@ type {{$contract}}Builder struct{}
 func New{{$contract}}(address tezos.Address, client *rpc.Client) *{{$contract}} {
 	return &{{$contract}}{
 		Contract: contract.NewContract(address, client),
+		rpc: client,
 	}
 }
 
@@ -70,14 +70,33 @@ func {{$rc}} Session(opts *rpc.CallOptions) *{{$contract}}Session {
 	return &{{$contract}}Session{ {{- $contract}}: {{$r}}, Opts: opts}
 }
 
+// Builder returns the builder struct for this contract.
+func {{$rc}} Builder() {{$contract}}Builder {
+	return {{$r}}.builder
+}
+
 // New{{$contract}}Builder returns a new {{$contract}}Builder.
 func New{{$contract}}Builder() {{$contract}}Builder {
 	return {{$contract}}Builder{}
 }
 
 // Storage queries the current storage of the contract.
-func {{$rc}} Storage(ctx context.Context) {{type .Storage}} {
-    return nil
+func {{$rc}} Storage(ctx context.Context) ({{type .Storage}}, error) {
+	return {{$r}}.StorageAt(ctx, rpc.Head)
+}
+
+// Storage queries the contract's storage at the given block.
+func {{$rc}} StorageAt(ctx context.Context, block rpc.BlockID) ({{type .Storage}}, error) {
+	var storage {{type .Storage}}
+	prim, err := {{$r}}.rpc.GetContractStorage(ctx, {{$r}}.Address(), block)
+	if err != nil {
+		return storage, errors.Wrap(err, "failed to get storage")
+	}
+	err = bind.UnmarshalPrim(prim, &storage)
+	if err != nil {
+		return storage, errors.Wrap(err, "failed to unmarshal storage")
+	}
+	return storage, nil
 }
 
 // Deploy{{$contract}} deploys a {{$contract}} contract by using client and opts, and {{$contract}}Micheline.
@@ -90,7 +109,7 @@ func Deploy{{$contract}}(ctx context.Context, opts *rpc.CallOptions, client *rpc
 		return nil, nil, errors.Wrap(err, "failed to unmarshall contract's script")
 	}
 
-	prim, err := tzgoext.MarshalPrim(storage)
+	prim, err := bind.MarshalPrim(storage)
 	if err != nil {
 		return nil, nil, errors.Wrap(err, "failed to marshal storage")
 	}
@@ -101,7 +120,7 @@ func Deploy{{$contract}}(ctx context.Context, opts *rpc.CallOptions, client *rpc
 	if err != nil {
 		return nil, nil, errors.Wrap(err, "failed to deploy contract")
 	}
-	return receipt, &{{$contract}}{Contract: c}, nil
+	return receipt, &{{$contract}}{Contract: c, rpc: client}, nil
 }
 
 // region Entrypoints
@@ -130,7 +149,7 @@ func {{$rs}} {{pascal .Name}}(ctx context.Context, {{template "entryParamsList" 
 //
 // {{template "originalSignature" .}}
 func {{$rb}} {{pascal .Name}}({{template "entryParamsList" .}}) (micheline.Parameters, error) {
-	prim, err := tzgoext.MarshalParams({{range .Params}}{{camel .Name}},{{end}})
+	prim, err := bind.MarshalParams({{range .Params}}{{camel .Name}},{{end}})
 	if err != nil {
 		return micheline.Parameters{}, errors.Wrap(err, "failed to marshal params")
 	}
@@ -155,7 +174,7 @@ func {{$rc}} {{pascal .Name}}(ctx context.Context, {{template "entryParamsList" 
 	if err != nil {
 		return res, err
 	}
-	if err = tzgoext.UnmarshalPrim(prim, &res); err != nil {
+	if err = bind.UnmarshalPrim(prim, &res); err != nil {
 		return res, errors.Wrap(err, "failed to unmarshal res")
 	}
 	return res, nil
@@ -165,7 +184,7 @@ func {{$rc}} {{pascal .Name}}(ctx context.Context, {{template "entryParamsList" 
 //
 // {{template "originalSignature" .}}
 func {{$rb}} {{pascal .Name}}({{template "entryParamsList" .}}) (micheline.Parameters, error) {
-	prim, err := tzgoext.MarshalParams({{range .Params}}{{camel .Name}},{{end}})
+	prim, err := bind.MarshalParams({{range .Params}}{{camel .Name}},{{end}})
 	if err != nil {
 		return micheline.Parameters{}, errors.Wrap(err, "failed to marshal params")
 	}
@@ -181,19 +200,31 @@ func {{$rb}} {{pascal .Name}}({{template "entryParamsList" .}}) (micheline.Param
 {{range .Structs}}
 
 {{$rs := printf "(%s *%s)" $r (pascal .Name)}}
+{{$n := len .Fields}}
 
+// {{pascal .Name}} is a generated struct used to interact with {{$contract}} smart contract.
 type {{pascal .Name}} struct {
 	{{range .Fields}}
 		{{pascal .Name}} {{type .Type}}
 	{{- end}}
 }
 
+// MarshalPrim marshals {{pascal .Name}} into a Prim.
 func {{$rs}} MarshalPrim() (micheline.Prim, error) {
-	return tzgoext.MarshalParams({{range .Fields}}{{$r}}.{{pascal .Name}},{{end}})
+	return bind.MarshalParams({{range .Fields}}{{$r}}.{{pascal .Name}},{{end}})
 }
 
-func {{$rs}} UnmarshalPrim(micheline.Prim) error {
-	return nil
+// UnmarshalPrim unmarshals a Prim into a {{pascal .Name}}.
+func {{$rs}} UnmarshalPrim(prim micheline.Prim) error {
+	{{if eq $n 1 -}}
+		return bind.UnmarshalPrim(prim, &{{index .Fields 0}})
+	{{- else -}}
+		return bind.UnmarshalPrimPaths(prim, map[string]any{
+		{{- range $i, $field := .Fields -}}
+			"{{pathFromIdx $i $n}}": &{{$r}}.{{pascal $field.Name}},
+		{{- end -}}
+		})
+	{{- end}}
 }
 
 {{end}}
@@ -202,8 +233,7 @@ const {{$contract}}Micheline = `{{.Contract.Micheline}}`
 
 var (
 	_ = big.NewInt
-	_ = either.Left[int, int]
 	_ = micheline.NewPrim
-	_ = option.Some[int]
+	_ = bind.MarshalParams
 	_ = time.Now
 )

@@ -9,12 +9,13 @@ import (
 )
 
 var funcMap = template.FuncMap{
-	"receiver": receiver,
-	"pascal":   strcase.ToCamel,
-	"camel":    strcase.ToLowerCamel,
-	"sub":      func(a, b int) int { return a - b },
-	"type":     goType,
-	"mkprim":   marshalPrimMethod,
+	"receiver":    receiver,
+	"pascal":      strcase.ToCamel,
+	"camel":       strcase.ToLowerCamel,
+	"sub":         func(a, b int) int { return a - b },
+	"type":        goType,
+	"mkprim":      marshalPrimMethod,
+	"pathFromIdx": pathFromIndex,
 }
 
 func receiver(typeName string) string {
@@ -49,9 +50,9 @@ func goType(typ types.Type) string {
 		return "tezos.ChainIdHash"
 
 	case *types.Option:
-		return fmt.Sprintf("option.Option[%s]", goType(t.Type))
+		return fmt.Sprintf("bind.Option[%s]", goType(t.Type))
 	case *types.Union:
-		return fmt.Sprintf("either.Either[%s, %s]", goType(t.Left), goType(t.Right))
+		return fmt.Sprintf("bind.Or[%s, %s]", goType(t.Left), goType(t.Right))
 	case *types.List:
 		return "[]" + goType(t.Type)
 	case *types.Set:
@@ -94,7 +95,7 @@ func marshalPrimMethod(typ types.Type) string {
 	//case *types.Option:
 	//	return "tzgoext.MarshalPrimOption(%s"
 	//case *types.Union:
-	//	return fmt.Sprintf("either.Either[%s, %s]", goType(t.Left), goType(t.Right))
+	//	return fmt.Sprintf("bind.Or[%s, %s]", goType(t.Left), goType(t.Right))
 	case *types.List:
 		return "tzgoext.MarshalPrimSeq[" + goType(t.Type) + "](%s, tzgoext.MarshalAny)"
 	//case *types.Set:
@@ -111,4 +112,21 @@ func marshalPrimMethod(typ types.Type) string {
 	}
 
 	return "micheline.Prim{}/* %s */"
+}
+
+// pathFromIndex returns a path to a right-comb nested Pairs, from the index of a struct's field
+// and the total number of fields.
+func pathFromIndex(i, n int) string {
+	if n == 1 {
+		panic("pathFromIndex should not be called when a struct has 1 field")
+	}
+	// -
+	// l r
+	// l rl rr
+	// l rl rrl rrr
+	// l rl rrl rrrl rrrr
+	if i == n-1 {
+		return strings.TrimSuffix(strings.Repeat("r/", n-1), "/")
+	}
+	return strings.Repeat("r/", i) + "l"
 }

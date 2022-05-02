@@ -14,17 +14,16 @@ import (
 	"blockwatch.cc/tzgo/micheline"
 	"blockwatch.cc/tzgo/rpc"
 	"blockwatch.cc/tzgo/tezos"
-
-	"github.com/jeanschmitt/tzgen/pkg/either"
-	"github.com/jeanschmitt/tzgen/pkg/option"
-	"github.com/jeanschmitt/tzgen/pkg/tzgoext"
 	"github.com/pkg/errors"
+
+	"github.com/jeanschmitt/tzgen/pkg/bind"
 )
 
 // Simple is a generated binding to a Tezos smart contract.
 type Simple struct {
 	*contract.Contract
 	builder SimpleBuilder
+	rpc     *rpc.Client
 }
 
 // SimpleSession is a generated binding to a Tezos smart contract, that will
@@ -43,6 +42,7 @@ type SimpleBuilder struct{}
 func NewSimple(address tezos.Address, client *rpc.Client) *Simple {
 	return &Simple{
 		Contract: contract.NewContract(address, client),
+		rpc:      client,
 	}
 }
 
@@ -51,14 +51,33 @@ func (_s *Simple) Session(opts *rpc.CallOptions) *SimpleSession {
 	return &SimpleSession{Simple: _s, Opts: opts}
 }
 
+// Builder returns the builder struct for this contract.
+func (_s *Simple) Builder() SimpleBuilder {
+	return _s.builder
+}
+
 // NewSimpleBuilder returns a new SimpleBuilder.
 func NewSimpleBuilder() SimpleBuilder {
 	return SimpleBuilder{}
 }
 
 // Storage queries the current storage of the contract.
-func (_s *Simple) Storage(ctx context.Context) *big.Int {
-	return nil
+func (_s *Simple) Storage(ctx context.Context) (*big.Int, error) {
+	return _s.StorageAt(ctx, rpc.Head)
+}
+
+// Storage queries the contract's storage at the given block.
+func (_s *Simple) StorageAt(ctx context.Context, block rpc.BlockID) (*big.Int, error) {
+	var storage *big.Int
+	prim, err := _s.rpc.GetContractStorage(ctx, _s.Address(), block)
+	if err != nil {
+		return storage, errors.Wrap(err, "failed to get storage")
+	}
+	err = bind.UnmarshalPrim(prim, &storage)
+	if err != nil {
+		return storage, errors.Wrap(err, "failed to unmarshal storage")
+	}
+	return storage, nil
 }
 
 // DeploySimple deploys a Simple contract by using client and opts, and SimpleMicheline.
@@ -71,7 +90,7 @@ func DeploySimple(ctx context.Context, opts *rpc.CallOptions, client *rpc.Client
 		return nil, nil, errors.Wrap(err, "failed to unmarshall contract's script")
 	}
 
-	prim, err := tzgoext.MarshalPrim(storage)
+	prim, err := bind.MarshalPrim(storage)
 	if err != nil {
 		return nil, nil, errors.Wrap(err, "failed to marshal storage")
 	}
@@ -82,7 +101,7 @@ func DeploySimple(ctx context.Context, opts *rpc.CallOptions, client *rpc.Client
 	if err != nil {
 		return nil, nil, errors.Wrap(err, "failed to deploy contract")
 	}
-	return receipt, &Simple{Contract: c}, nil
+	return receipt, &Simple{Contract: c, rpc: client}, nil
 }
 
 // region Entrypoints
@@ -109,7 +128,7 @@ func (_s *SimpleSession) Add(ctx context.Context, nat0 *big.Int) (*rpc.Receipt, 
 //
 // add(nat0 nat)
 func (_s SimpleBuilder) Add(nat0 *big.Int) (micheline.Parameters, error) {
-	prim, err := tzgoext.MarshalParams(nat0)
+	prim, err := bind.MarshalParams(nat0)
 	if err != nil {
 		return micheline.Parameters{}, errors.Wrap(err, "failed to marshal params")
 	}
@@ -138,7 +157,7 @@ func (_s *SimpleSession) Inc(ctx context.Context) (*rpc.Receipt, error) {
 //
 // inc()
 func (_s SimpleBuilder) Inc() (micheline.Parameters, error) {
-	prim, err := tzgoext.MarshalParams()
+	prim, err := bind.MarshalParams()
 	if err != nil {
 		return micheline.Parameters{}, errors.Wrap(err, "failed to marshal params")
 	}
@@ -167,7 +186,7 @@ func (_s *SimpleSession) Reset(ctx context.Context) (*rpc.Receipt, error) {
 //
 // reset()
 func (_s SimpleBuilder) Reset() (micheline.Parameters, error) {
-	prim, err := tzgoext.MarshalParams()
+	prim, err := bind.MarshalParams()
 	if err != nil {
 		return micheline.Parameters{}, errors.Wrap(err, "failed to marshal params")
 	}
@@ -188,7 +207,7 @@ func (_s *Simple) GetCounter(ctx context.Context) (*big.Int, error) {
 	if err != nil {
 		return res, err
 	}
-	if err = tzgoext.UnmarshalPrim(prim, &res); err != nil {
+	if err = bind.UnmarshalPrim(prim, &res); err != nil {
 		return res, errors.Wrap(err, "failed to unmarshal res")
 	}
 	return res, nil
@@ -198,7 +217,7 @@ func (_s *Simple) GetCounter(ctx context.Context) (*big.Int, error) {
 //
 // get_counter()
 func (_s SimpleBuilder) GetCounter() (micheline.Parameters, error) {
-	prim, err := tzgoext.MarshalParams()
+	prim, err := bind.MarshalParams()
 	if err != nil {
 		return micheline.Parameters{}, errors.Wrap(err, "failed to marshal params")
 	}
@@ -211,8 +230,7 @@ const SimpleMicheline = `{"code":[{"prim":"parameter","args":[{"prim":"or","args
 
 var (
 	_ = big.NewInt
-	_ = either.Left[int, int]
 	_ = micheline.NewPrim
-	_ = option.Some[int]
+	_ = bind.MarshalParams
 	_ = time.Now
 )
