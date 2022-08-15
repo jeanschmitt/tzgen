@@ -15,7 +15,7 @@ import (
 
 // input
 var (
-	nodeURL = flag.String("node", "https://hangzhounet.smartpy.io", "endpoint to use when using --address")
+	nodeURL = flag.String("node", "https://ghostnet.smartpy.io", "endpoint to use when using --address")
 	chain   = flag.String("chain", "main", "chain id to use when using --address")
 	address = flag.String("address", "", "address of the deployed contract")
 	inFile  = flag.StringP("infile", "i", "", "path for the micheline input file")
@@ -99,7 +99,7 @@ func getInput() []byte {
 	if *address != "" {
 		res, err := http.Get(scriptURL())
 		handleErr(err)
-		defer res.Body.Close()
+		defer func() { _ = res.Body.Close() }()
 
 		data, err := io.ReadAll(res.Body)
 		handleErr(err)

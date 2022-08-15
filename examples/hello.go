@@ -6,22 +6,23 @@ import (
 	"context"
 	"fmt"
 	"github.com/jeanschmitt/tzgen/examples/contracts"
+	"log"
 	"os"
 )
 
-//go:generate go run ../main.go --address KT1CiYNu9iJknnL31TXBWHCqRdFRh7jPWdzg --name Simple --pkg contracts -o ./contracts/Simple.go
+//go:generate go run ../main.go --address KT1K3ZqbYq1bCwpSPNX9xBgQd8CaYxRVXd4P --name Hello --pkg contracts -o ./contracts/Hello.go
 
 var examples = map[string]func(){
-	"tzip4": TZIP4View,
+	"storage": Storage,
 }
 
-func TZIP4View() {
-	simple := simpleContract(rpcClient())
+func Storage() {
+	hello := helloContract(rpcClient())
 
-	counter, err := simple.GetCounter(context.Background())
+	value, err := hello.Storage(context.Background())
 	handleErr(err)
 
-	fmt.Printf("Current counter value: %v\n", counter)
+	fmt.Printf("Current storage: %v\n", value)
 }
 
 func main() {
@@ -44,19 +45,24 @@ func main() {
 }
 
 func rpcClient() *rpc.Client {
-	tzClient, err := rpc.NewClient("https://hangzhounet.smartpy.io", nil)
-	tzClient.ChainId = tezos.Hangzhounet2
+	tzClient, err := rpc.NewClient("https://ghostnet.smartpy.io", nil)
 	handleErr(err)
+
+	err = tzClient.Init(context.Background())
+	handleErr(err)
+
+	tzClient.Listen()
+	handleErr(err)
+
 	return tzClient
 }
 
-func simpleContract(tzClient *rpc.Client) *contracts.Simple {
-	return contracts.NewSimple(tezos.MustParseAddress("KT1CiYNu9iJknnL31TXBWHCqRdFRh7jPWdzg"), tzClient)
+func helloContract(tzClient *rpc.Client) *contracts.Hello {
+	return contracts.NewHello(tezos.MustParseAddress("KT1K3ZqbYq1bCwpSPNX9xBgQd8CaYxRVXd4P"), tzClient)
 }
 
 func handleErr(err error) {
 	if err != nil {
-		fmt.Printf("An error occured: %v\n", err)
-		os.Exit(1)
+		log.Fatalf("An error occured: %v\n", err)
 	}
 }
