@@ -1,6 +1,6 @@
 module github.com/jeanschmitt/tzgen
 
-go 1.18
+go 1.19
 
 require (
 	blockwatch.cc/tzgo v1.13.3
