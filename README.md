@@ -13,17 +13,13 @@ go install github.com/jeanschmitt/tzgen@latest
 ### From a deployed contract
 
 ```bash
-tzgen --name Simple --pkg contracts --address KT1CiYNu9iJknnL31TXBWHCqRdFRh7jPWdzg -o ./contracts/Simple.go
+tzgen --name Hello --pkg contracts --address KT1K3ZqbYq1bCwpSPNX9xBgQd8CaYxRVXd4P -o ./contracts/Hello.go
 ```
 
-The endpoint and chain id are `https://hangzhounet.smartpy.io` and `main` by default, but can be overridden with `--node` and `--chain`.
+The endpoint is `https://ghostnet.smartpy.io` by default, but can be overridden with `--endpoint`.
 
 ### From a micheline file
 
 ```bash
-tzgen --name Simple --pkg contracts -i ./Simple.json -o ./contracts/Simple.go
+tzgen --name Hello --pkg contracts --src ./Hello.json -o ./contracts/Hello.go
 ```
-
-## Note
-
-This tool is still under development, so the generated bindings don't cover every smart contract yet.
