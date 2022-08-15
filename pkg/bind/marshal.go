@@ -9,12 +9,20 @@ import (
 	"time"
 )
 
+type PrimMarshaler interface {
+	MarshalPrim(optimized bool) (micheline.Prim, error)
+}
+
 // MarshalPrim marshals v into a Prim by using reflection.
-func MarshalPrim(v any) (micheline.Prim, error) {
+//
+// If true, timestamps ,addresses, keys and signatures will be
+// marshaled in their optimized format.
+// See https://tezos.gitlab.io/active/michelson.html#differences-with-the-formal-notation.
+func MarshalPrim(v any, optimized bool) (micheline.Prim, error) {
 	// Handle types that we can process with a type switch
 	switch t := v.(type) {
-	case micheline.PrimMarshaler:
-		return t.MarshalPrim()
+	case PrimMarshaler:
+		return t.MarshalPrim(optimized)
 	case *big.Int:
 		return micheline.NewBig(t), nil
 	case string:
@@ -27,12 +35,24 @@ func MarshalPrim(v any) (micheline.Prim, error) {
 	case []byte:
 		return micheline.NewBytes(t), nil
 	case time.Time:
+		if optimized {
+			return micheline.NewInt64(t.Unix()), nil
+		}
 		return micheline.NewString(t.Format(time.RFC3339)), nil
 	case tezos.Address:
+		if optimized {
+			return micheline.NewBytes(t.Bytes22()), nil
+		}
 		return micheline.NewString(t.String()), nil
 	case tezos.Key:
+		if optimized {
+			return micheline.NewBytes(t.Bytes()), nil
+		}
 		return micheline.NewString(t.String()), nil
 	case tezos.Signature:
+		if optimized {
+			return micheline.NewBytes(t.Bytes()), nil
+		}
 		return micheline.NewString(t.String()), nil
 	case tezos.ChainIdHash:
 		return micheline.NewString(t.String()), nil
@@ -45,7 +65,7 @@ func MarshalPrim(v any) (micheline.Prim, error) {
 		n := val.Len()
 		prims := make([]micheline.Prim, 0, n)
 		for i := 0; i < n; i++ {
-			prim, err := MarshalPrim(val.Index(i).Interface())
+			prim, err := MarshalPrim(val.Index(i).Interface(), optimized)
 			if err != nil {
 				return micheline.Prim{}, err
 			}
@@ -58,14 +78,14 @@ func MarshalPrim(v any) (micheline.Prim, error) {
 }
 
 // MarshalParams marshals the provided params into a folded Prim.
-func MarshalParams(params ...any) (micheline.Prim, error) {
+func MarshalParams(optimized bool, params ...any) (micheline.Prim, error) {
 	if len(params) == 0 {
 		return micheline.NewPrim(micheline.D_UNIT), nil
 	}
 
 	prims := make([]micheline.Prim, 0, len(params))
 	for _, p := range params {
-		prim, err := MarshalPrim(p)
+		prim, err := MarshalPrim(p, optimized)
 		if err != nil {
 			return micheline.Prim{}, err
 		}

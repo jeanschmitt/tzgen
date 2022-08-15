@@ -42,15 +42,15 @@ func (o Or[L, R]) Right() (R, bool) {
 	return o.r, o.isRight
 }
 
-func (o Or[L, R]) MarshalPrim() (micheline.Prim, error) {
+func (o Or[L, R]) MarshalPrim(optimized bool) (micheline.Prim, error) {
 	if o.isRight {
-		inner, err := MarshalPrim(o.r)
+		inner, err := MarshalPrim(o.r, optimized)
 		if err != nil {
 			return micheline.Prim{}, err
 		}
 		return micheline.NewCode(micheline.D_RIGHT, inner), nil
 	} else {
-		inner, err := MarshalPrim(o.l)
+		inner, err := MarshalPrim(o.l, optimized)
 		if err != nil {
 			return micheline.Prim{}, err
 		}
@@ -74,5 +74,16 @@ func (o *Or[L, R]) UnmarshalPrim(prim micheline.Prim) error {
 		return UnmarshalPrim(prim.Args[0], &o.r)
 	default:
 		return errors.Errorf("unexpected opCode when unmarshalling Or: %s", prim.OpCode)
+	}
+}
+
+func (o Or[L, R]) keyHash() hashType {
+	if l, ok := o.Left(); ok {
+		valHash := hashFunc(zero[L]())(l)
+		return hashBytes(append([]byte{0}, valHash[:]...))
+	} else {
+		r, _ := o.Right()
+		valHash := hashFunc(zero[R]())(r)
+		return hashBytes(append([]byte{1}, valHash[:]...))
 	}
 }

@@ -48,6 +48,8 @@ func goType(typ types.Type) string {
 		return "tezos.Signature"
 	case types.ChainID:
 		return "tezos.ChainIdHash"
+	case types.Unit:
+		return "struct{}"
 
 	case *types.Option:
 		return fmt.Sprintf("bind.Option[%s]", goType(t.Type))
@@ -58,11 +60,12 @@ func goType(typ types.Type) string {
 	case *types.Set:
 		return "[]" + goType(t.Type)
 	case *types.Map:
-		//return fmt.Sprintf("*hashmap.Map[%s, %s]", goType(t.Key), goType(t.Value))
+		return fmt.Sprintf("bind.Map[%s, %s]", goType(t.Key), goType(t.Value))
+	case *types.Bigmap:
+		return fmt.Sprintf("bind.Bigmap[%s, %s]", goType(t.Key), goType(t.Value))
 	case *types.Struct:
 		return "*" + strcase.ToCamel(t.Name)
 
-		// case types.Unit:
 		// case types.Operation:
 		// case types.Contract:
 	}
@@ -92,26 +95,16 @@ func marshalPrimMethod(typ types.Type) string {
 		types.ChainID:
 		return "micheline.NewBytes(%s.Bytes())"
 
-	//case *types.Option:
-	//	return "tzgoext.MarshalPrimOption(%s"
-	//case *types.Union:
-	//	return fmt.Sprintf("bind.Or[%s, %s]", goType(t.Left), goType(t.Right))
 	case *types.List:
 		return "tzgoext.MarshalPrimSeq[" + goType(t.Type) + "](%s, tzgoext.MarshalAny)"
-	//case *types.Set:
-	//	return "[]" + goType(t.Type)
-	//case *types.Map:
-	//	return fmt.Sprintf("tzgoext.Map[%s, %s]", goType(t.Key), goType(t.Value))
 	case *types.Struct:
 		return "%s.Prim()"
 
 	default:
-		// case *types.Unit:
 		// case *types.Operation:
 		// case *types.Contract:
+		return "micheline.Prim{}/* %s */"
 	}
-
-	return "micheline.Prim{}/* %s */"
 }
 
 // pathFromIndex returns a path to a right-comb nested Pairs, from the index of a struct's field
@@ -120,11 +113,6 @@ func pathFromIndex(i, n int) string {
 	if n == 1 {
 		panic("pathFromIndex should not be called when a struct has 1 field")
 	}
-	// -
-	// l r
-	// l rl rr
-	// l rl rrl rrr
-	// l rl rrl rrrl rrrr
 	if i == n-1 {
 		return strings.TrimSuffix(strings.Repeat("r/", n-1), "/")
 	}

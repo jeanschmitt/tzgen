@@ -39,10 +39,12 @@ func UnmarshalPrim(prim micheline.Prim, v any) error {
 	if val.Kind() != reflect.Ptr || val.IsNil() {
 		return errors.New("v should be a non-nil pointer")
 	}
-	val = val.Elem()
+	//val = val.Elem()
 
 	return unmarshalPrimVal(prim, val)
 }
+
+var _ micheline.PrimUnmarshaler = &Bigmap[string, []byte]{}
 
 func unmarshalPrimVal(prim micheline.Prim, val reflect.Value) error {
 	// Init Elem value if val is Nil
@@ -69,6 +71,9 @@ func unmarshalPrimVal(prim micheline.Prim, val reflect.Value) error {
 		switch prim.OpCode {
 		case micheline.D_TRUE, micheline.D_FALSE:
 			return unmarshalBool(prim.OpCode == micheline.D_TRUE, val)
+		case micheline.D_UNIT:
+			// v should be a struct{}, so we don't have to set anything
+			return nil
 		}
 	}
 

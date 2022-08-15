@@ -34,15 +34,15 @@ import (
 {{$r := receiver $contract}}
 {{$rc := printf "(%s *%s)" $r $contract}}
 {{$rs := printf "(%s *%sSession)" $r $contract}}
-{{$rb := printf "(%s %sBuilder)" $r $contract}}
+{{$rb := printf "(%sBuilder)" $contract}}
 
 {{with .Contract -}}
 
 // {{$contract}} is a generated binding to a Tezos smart contract.
 type {{$contract}} struct {
-	*contract.Contract
+	bind.Contract
 	builder {{$contract}}Builder
-	rpc *rpc.Client
+	rpc bind.RPC
 }
 
 // {{$contract}}Session is a generated binding to a Tezos smart contract, that will
@@ -75,20 +75,15 @@ func {{$rc}} Builder() {{$contract}}Builder {
 	return {{$r}}.builder
 }
 
-// New{{$contract}}Builder returns a new {{$contract}}Builder.
-func New{{$contract}}Builder() {{$contract}}Builder {
-	return {{$contract}}Builder{}
-}
-
 // Storage queries the current storage of the contract.
 func {{$rc}} Storage(ctx context.Context) ({{type .Storage}}, error) {
 	return {{$r}}.StorageAt(ctx, rpc.Head)
 }
 
-// Storage queries the contract's storage at the given block.
+// StorageAt queries the contract's storage at the given block.
 func {{$rc}} StorageAt(ctx context.Context, block rpc.BlockID) ({{type .Storage}}, error) {
 	var storage {{type .Storage}}
-	prim, err := {{$r}}.rpc.GetContractStorage(ctx, {{$r}}.Address(), block)
+	prim, err := {{$r}}.rpc.GetContractStorage(ctx, {{$r}}.Contract.Address(), block)
 	if err != nil {
 		return storage, errors.Wrap(err, "failed to get storage")
 	}
@@ -96,6 +91,13 @@ func {{$rc}} StorageAt(ctx context.Context, block rpc.BlockID) ({{type .Storage}
 	if err != nil {
 		return storage, errors.Wrap(err, "failed to unmarshal storage")
 	}
+	{{- if eq .Storage.TypeName "struct" -}}
+		{{- range .Storage.Fields -}}
+			{{- if eq .Type.TypeName "big_map"}}
+				storage.{{pascal .Name}}.SetRPC({{$r}}.rpc)
+			{{- end -}}
+		{{- end -}}
+	{{- end}}
 	return storage, nil
 }
 
@@ -109,7 +111,7 @@ func Deploy{{$contract}}(ctx context.Context, opts *rpc.CallOptions, client *rpc
 		return nil, nil, errors.Wrap(err, "failed to unmarshall contract's script")
 	}
 
-	prim, err := bind.MarshalPrim(storage)
+	prim, err := bind.MarshalPrim(storage, false)
 	if err != nil {
 		return nil, nil, errors.Wrap(err, "failed to marshal storage")
 	}
@@ -135,7 +137,7 @@ func {{$rc}} {{pascal .Name}}(ctx context.Context, opts *rpc.CallOptions, {{temp
 	if err != nil {
 		return nil, err
 	}
-	return {{$r}}.Call(ctx, &contract.TxArgs{Params: params}, opts)
+	return {{$r}}.Contract.Call(ctx, &contract.TxArgs{Params: params}, opts)
 }
 
 // {{pascal .Name}} makes a call to the `{{.Name}}` contract entry.
@@ -149,7 +151,7 @@ func {{$rs}} {{pascal .Name}}(ctx context.Context, {{template "entryParamsList" 
 //
 // {{template "originalSignature" .}}
 func {{$rb}} {{pascal .Name}}({{template "entryParamsList" .}}) (micheline.Parameters, error) {
-	prim, err := bind.MarshalParams({{range .Params}}{{camel .Name}},{{end}})
+	prim, err := bind.MarshalParams(false, {{range .Params}}{{camel .Name}},{{end}})
 	if err != nil {
 		return micheline.Parameters{}, errors.Wrap(err, "failed to marshal params")
 	}
@@ -170,7 +172,7 @@ func {{$rb}} {{pascal .Name}}({{template "entryParamsList" .}}) (micheline.Param
 func {{$rc}} {{pascal .Name}}(ctx context.Context, {{template "entryParamsList" .}}) ({{type .ReturnType}}, error) {
 	var res {{type .ReturnType}}
 	params, err := {{$r}}.builder.{{pascal .Name}}({{range .Params}}{{camel .Name}},{{end}})
-	prim, err := {{$r}}.RunView(ctx, params.Entrypoint, params.Value)
+	prim, err := {{$r}}.Contract.RunView(ctx, params.Entrypoint, params.Value)
 	if err != nil {
 		return res, err
 	}
@@ -184,7 +186,7 @@ func {{$rc}} {{pascal .Name}}(ctx context.Context, {{template "entryParamsList" 
 //
 // {{template "originalSignature" .}}
 func {{$rb}} {{pascal .Name}}({{template "entryParamsList" .}}) (micheline.Parameters, error) {
-	prim, err := bind.MarshalParams({{range .Params}}{{camel .Name}},{{end}})
+	prim, err := bind.MarshalParams(false, {{range .Params}}{{camel .Name}},{{end}})
 	if err != nil {
 		return micheline.Parameters{}, errors.Wrap(err, "failed to marshal params")
 	}
@@ -210,14 +212,20 @@ type {{pascal .Name}} struct {
 }
 
 // MarshalPrim marshals {{pascal .Name}} into a Prim.
-func {{$rs}} MarshalPrim() (micheline.Prim, error) {
-	return bind.MarshalParams({{range .Fields}}{{$r}}.{{pascal .Name}},{{end}})
+func {{$rs}} MarshalPrim(optimized bool) (micheline.Prim, error) {
+	return bind.MarshalParams(optimized, {{range .Fields}}{{$r}}.{{pascal .Name}},{{end}})
 }
 
 // UnmarshalPrim unmarshals a Prim into a {{pascal .Name}}.
 func {{$rs}} UnmarshalPrim(prim micheline.Prim) error {
 	{{if eq $n 1 -}}
 		return bind.UnmarshalPrim(prim, &{{index .Fields 0}})
+	{{- else if .Flat -}}
+		return bind.UnmarshalPrimPaths(prim, map[string]any{
+			{{- range $i, $field := .Fields -}}
+				"{{$i}}": &{{$r}}.{{pascal $field.Name}},
+			{{- end -}}
+		})
 	{{- else -}}
 		return bind.UnmarshalPrimPaths(prim, map[string]any{
 		{{- range $i, $field := .Fields -}}

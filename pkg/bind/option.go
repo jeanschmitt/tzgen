@@ -64,9 +64,9 @@ func (o Option[T]) IsNone() bool {
 	return !o.isSome
 }
 
-func (o Option[T]) MarshalPrim() (micheline.Prim, error) {
+func (o Option[T]) MarshalPrim(optimized bool) (micheline.Prim, error) {
 	if o.isSome {
-		inner, err := MarshalPrim(o.v)
+		inner, err := MarshalPrim(o.v, optimized)
 		if err != nil {
 			return micheline.Prim{}, err
 		}
@@ -88,5 +88,13 @@ func (o *Option[T]) UnmarshalPrim(prim micheline.Prim) error {
 		return nil
 	default:
 		return errors.Errorf("unexpected opCode when unmarshalling Option: %s", prim.OpCode)
+	}
+}
+
+func (o Option[T]) keyHash() hashType {
+	if v, ok := o.Get(); ok {
+		return hashFunc(zero[T]())(v)
+	} else {
+		return hashType{0}
 	}
 }

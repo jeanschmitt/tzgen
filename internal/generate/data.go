@@ -22,14 +22,14 @@ type Data struct {
 	Package  string
 }
 
-func (d *Data) Render() ([]byte, error) {
+func Render(data *Data) ([]byte, error) {
 	tpl, err := template.New("contract").Funcs(funcMap).Parse(goTemplate)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to parse template")
 	}
 
 	buffer := new(bytes.Buffer)
-	err = tpl.Execute(buffer, d)
+	err = tpl.Execute(buffer, data)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to execute template")
 	}

@@ -1,5 +1,7 @@
 package ast
 
+import "github.com/jeanschmitt/tzgen/pkg/ast/types"
+
 type Contract struct {
 	// Name of the Contract.
 	// Can be inferred from its metadata, if it implements TZIP-16 (TODO).
@@ -13,7 +15,7 @@ type Contract struct {
 	// regular entrypoints.
 	Getters []*Getter
 	// Type of the Contract's Storage.
-	Storage any
+	Storage types.Type
 	// Bigmaps referenced in the Contract's Storage.
 	Bigmaps []any
 }

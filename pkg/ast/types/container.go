@@ -7,6 +7,9 @@ package types
 type Struct struct {
 	Name   string
 	Fields []Param
+	// If true, the expected prim matching to this struct has a flat structure,
+	// instead of a tree of pairs.
+	Flat bool
 }
 
 func (s *Struct) Hash() []byte {

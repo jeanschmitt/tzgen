@@ -1,7 +1,6 @@
 package main
 
 import (
-	"bytes"
 	_ "embed"
 	"fmt"
 	"github.com/jeanschmitt/tzgen/internal/generate"
@@ -56,10 +55,10 @@ func main() {
 
 	script := getInput()
 
-	contract, structs, unions, err := parse.Parse(bytes.NewReader(script), *contractName)
+	contract, structs, unions, err := parse.Parse(script, *contractName)
 	handleErr(err)
 
-	data := generate.Data{
+	data := &generate.Data{
 		Contract: contract,
 		Structs:  structs,
 		Unions:   unions,
@@ -67,7 +66,7 @@ func main() {
 		Package:  *packageName,
 	}
 
-	out, err := data.Render()
+	out, err := generate.Render(data)
 	handleErr(err)
 
 	processOutput(out)

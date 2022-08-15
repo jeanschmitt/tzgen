@@ -5,7 +5,6 @@ import (
 	"github.com/jeanschmitt/tzgen/pkg/ast"
 	"github.com/jeanschmitt/tzgen/pkg/ast/types"
 	"github.com/pkg/errors"
-	"golang.org/x/exp/maps"
 	"sort"
 	"strconv"
 )
@@ -16,7 +15,7 @@ func (p *parser) parseEntrypoints() error {
 		return errors.Wrap(err, "failed to get entrypoints")
 	}
 
-	entrypoints := maps.Values(entrypointMap)
+	entrypoints := mapValues(entrypointMap)
 
 	// Sort entrypoints by id
 	sort.SliceStable(entrypoints, func(i, j int) bool { return entrypoints[i].Id < entrypoints[j].Id })
@@ -36,7 +35,7 @@ func (p *parser) parseEntrypoints() error {
 	return nil
 }
 
-func (p *parser) parseEntrypoint(entrypoint *micheline.Entrypoint) (interface{}, error) {
+func (p *parser) parseEntrypoint(entrypoint *micheline.Entrypoint) (any, error) {
 	e := ast.Entrypoint{
 		Name: entrypoint.Name,
 		Raw:  entrypoint,
@@ -86,4 +85,12 @@ func startsWithInt(s string) bool {
 		return false
 	}
 	return s[0] >= '0' && s[0] <= '9'
+}
+
+func mapValues[M ~map[K]V, K comparable, V any](m M) []V {
+	values := make([]V, 0, len(m))
+	for _, v := range m {
+		values = append(values, v)
+	}
+	return values
 }

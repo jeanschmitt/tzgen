@@ -7,17 +7,11 @@ import (
 	"github.com/jeanschmitt/tzgen/pkg/ast"
 	"github.com/jeanschmitt/tzgen/pkg/ast/types"
 	"github.com/pkg/errors"
-	"io"
 	"strconv"
 )
 
-func Parse(codeReader io.Reader, name string) (*ast.Contract, []*types.Struct, []*types.Union, error) {
-	code, err := io.ReadAll(codeReader)
-	if err != nil {
-		return nil, nil, nil, errors.Wrap(err, "failed to read code")
-	}
-
-	return newParser(code).parse(name)
+func Parse(raw []byte, name string) (*ast.Contract, []*types.Struct, []*types.Union, error) {
+	return newParser(raw).parse(name)
 }
 
 type parser struct {
@@ -59,15 +53,28 @@ func (p *parser) parse(name string) (*ast.Contract, []*types.Struct, []*types.Un
 	p.contract.Name = name
 	p.contract.Micheline = string(p.raw)
 
+	if err = p.parseStorage(); err != nil {
+		return nil, nil, nil, errors.Wrap(err, "failed to parse storage")
+	}
+
 	if err = p.parseEntrypoints(); err != nil {
 		return nil, nil, nil, errors.Wrap(err, "failed to parse entrypoints")
 	}
 
-	if p.contract.Storage, err = p.parseType(p.script.StorageType().TypedefPtr("Storage")); err != nil {
-		return nil, nil, nil, errors.Wrap(err, "failed to parse storage")
+	return p.contract, p.nameStructs(), p.unions, nil
+}
+
+func (p *parser) parseStorage() (err error) {
+	p.contract.Storage, err = p.parseType(p.script.StorageType().TypedefPtr("Storage"))
+	if err != nil {
+		return err
 	}
 
-	return p.contract, p.nameStructs(), p.unions, nil
+	if structStorage, ok := p.contract.Storage.(*types.Struct); ok {
+		structStorage.Flat = true
+	}
+
+	return nil
 }
 
 func (p *parser) nameStructs() []*types.Struct {
