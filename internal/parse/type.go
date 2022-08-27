@@ -75,7 +75,7 @@ func (p *parser) parseType(t *micheline.Typedef) (types.Type, error) {
 		}
 		switch t.Type {
 		case types.TypeUnion:
-			return p.registerUnion(&types.Union{Left: type1, Right: type2}), nil
+			return &types.Union{Left: type1, Right: type2}, nil
 		case types.TypeMap:
 			return &types.Map{Key: type1, Value: type2}, nil
 		case types.TypeBigmap:

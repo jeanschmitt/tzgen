@@ -17,7 +17,6 @@ var goTemplate string
 type Data struct {
 	Contract *ast.Contract
 	Structs  []*types.Struct
-	Unions   []*types.Union
 	Address  string
 	Package  string
 }

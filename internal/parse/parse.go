@@ -10,7 +10,7 @@ import (
 	"strconv"
 )
 
-func Parse(raw []byte, name string) (*ast.Contract, []*types.Struct, []*types.Union, error) {
+func Parse(raw []byte, name string) (*ast.Contract, []*types.Struct, error) {
 	return newParser(raw).parse(name)
 }
 
@@ -21,7 +21,6 @@ type parser struct {
 
 	counter int
 	structs []structWithHash
-	unions  []*types.Union
 }
 
 type structWithHash struct {
@@ -37,31 +36,31 @@ func newParser(raw []byte) *parser {
 	}
 }
 
-func (p *parser) parse(name string) (*ast.Contract, []*types.Struct, []*types.Union, error) {
+func (p *parser) parse(name string) (*ast.Contract, []*types.Struct, error) {
 	err := json.Unmarshal(p.raw, &p.script)
 	if err != nil {
-		return nil, nil, nil, errors.Wrap(err, "failed to unmarshal micheline code")
+		return nil, nil, errors.Wrap(err, "failed to unmarshal micheline code")
 	}
 
 	// Remove storage
 	p.script.Storage = micheline.Prim{}
 	p.raw, err = json.Marshal(p.script)
 	if err != nil {
-		return nil, nil, nil, errors.Wrap(err, "failed to re-marshall script")
+		return nil, nil, errors.Wrap(err, "failed to re-marshall script")
 	}
 
 	p.contract.Name = name
 	p.contract.Micheline = string(p.raw)
 
 	if err = p.parseStorage(); err != nil {
-		return nil, nil, nil, errors.Wrap(err, "failed to parse storage")
+		return nil, nil, errors.Wrap(err, "failed to parse storage")
 	}
 
 	if err = p.parseEntrypoints(); err != nil {
-		return nil, nil, nil, errors.Wrap(err, "failed to parse entrypoints")
+		return nil, nil, errors.Wrap(err, "failed to parse entrypoints")
 	}
 
-	return p.contract, p.nameStructs(), p.unions, nil
+	return p.contract, p.nameStructs(), nil
 }
 
 func (p *parser) parseStorage() (err error) {
@@ -110,12 +109,6 @@ func (p *parser) registerStruct(newStruct *types.Struct) *types.Struct {
 	}
 	p.structs = append(p.structs, structWithHash{Struct: newStruct, hash: hash})
 	return newStruct
-}
-
-func (p *parser) registerUnion(union *types.Union) *types.Union {
-	// We don't avoid duplication for unions
-	p.unions = append(p.unions, union)
-	return union
 }
 
 func (p *parser) lookupStruct(hash [types.HashSize]byte) *types.Struct {
