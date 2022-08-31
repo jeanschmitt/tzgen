@@ -1,9 +1,12 @@
 package cmd
 
 import (
+	"bytes"
+	"github.com/iancoleman/strcase"
 	"github.com/jeanschmitt/tzgen/internal/generate"
 	"github.com/jeanschmitt/tzgen/internal/parse"
 	"github.com/pkg/errors"
+	"gopkg.in/yaml.v3"
 	"io"
 	"net/http"
 	"net/url"
@@ -51,12 +54,13 @@ const (
 )
 
 var (
-	endpointFlag string
-	addressFlag  string
-	srcFlag      string
-	nameFlag     string
-	pkgFlag      string
-	outFlag      string
+	endpointFlag  string
+	addressFlag   string
+	srcFlag       string
+	nameFlag      string
+	pkgFlag       string
+	outFlag       string
+	fixupFileFlag string
 )
 
 func init() {
@@ -68,9 +72,11 @@ func init() {
 	rootCmd.Flags().StringVar(&nameFlag, "name", "", "name of the contract")
 	rootCmd.Flags().StringVar(&pkgFlag, "pkg", "", "go package of the output code")
 	rootCmd.Flags().StringVarP(&outFlag, "out", "o", "", "output file. Prints to Stdout if not set")
+	rootCmd.Flags().StringVarP(&fixupFileFlag, "fixup", "f", "", "yaml fixup file to use")
 	_ = rootCmd.MarkFlagRequired("name")
 	_ = rootCmd.MarkFlagRequired("pkg")
 	_ = rootCmd.MarkFlagFilename("out", "go")
+	_ = rootCmd.MarkFlagFilename("fixup")
 }
 
 func generateBindings(script []byte) ([]byte, error) {
@@ -79,9 +85,24 @@ func generateBindings(script []byte) ([]byte, error) {
 		Address: addressFlag,
 		Package: pkgFlag,
 	}
-	data.Contract, data.Structs, data.Unions, err = parse.Parse(script, nameFlag)
+	data.Contract, data.Structs, err = parse.Parse(script, nameFlag)
 	if err != nil {
 		return nil, err
+	}
+
+	if fixupFileFlag != "" {
+		fixupFile, err := os.ReadFile(fixupFileFlag)
+		if err != nil {
+			return nil, err
+		}
+
+		var fixupCfg parse.FixupConfig
+		err = yaml.NewDecoder(bytes.NewReader(fixupFile)).Decode(&fixupCfg)
+		if err != nil {
+			return nil, err
+		}
+
+		data.Structs = parse.Fixup(fixupCfg, data.Structs, strcase.ToCamel)
 	}
 
 	return generate.Render(&data)
