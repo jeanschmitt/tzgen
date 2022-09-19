@@ -155,12 +155,14 @@ func {{$rb}} {{pascal .Name}}({{template "entryParamsList" .}}) (micheline.Param
 	if err != nil {
 		return micheline.Parameters{}, errors.Wrap(err, "failed to marshal params")
 	}
-	return micheline.Parameters{Entrypoint: "{{.Name}}", Value: prim}, nil
+	return micheline.Parameters{Entrypoint: {{print $contract (pascal .Name)}}Entry, Value: prim}, nil
 }
 
 {{end}}
 
 // endregion
+
+{{if gt (len .Getters) 0}}
 
 // region Getters
 
@@ -190,12 +192,14 @@ func {{$rb}} {{pascal .Name}}({{template "entryParamsList" .}}) (micheline.Param
 	if err != nil {
 		return micheline.Parameters{}, errors.Wrap(err, "failed to marshal params")
 	}
-	return micheline.Parameters{Entrypoint: "{{.Name}}", Value: prim}, nil
+	return micheline.Parameters{Entrypoint: {{print $contract (pascal .Name)}}Entry, Value: prim}, nil
 }
 
 {{end}}
 
 // endregion
+
+{{- end}}
 
 {{- end}}
 
@@ -236,6 +240,16 @@ func {{$rs}} UnmarshalPrim(prim micheline.Prim) error {
 }
 
 {{end}}
+
+// {{$contract}} entry names
+const (
+	{{- range .Contract.Entrypoints}}
+		{{print $contract (pascal .Name)}}Entry = "{{.Name}}"
+	{{- end -}}
+	{{- range .Contract.Getters}}
+		{{print $contract (pascal .Name)}}Entry = "{{.Name}}"
+	{{- end -}}
+)
 
 const {{$contract}}Micheline = `{{.Contract.Micheline}}`
 

@@ -76,7 +76,7 @@ func (b *Bigmap[K, V]) Get(ctx context.Context, key K) (v V, err error) {
 	if err != nil {
 		var httpError rpc.HTTPError
 		if errors.As(err, &httpError) && httpError.StatusCode() == 404 {
-			return v, &ErrKeyNotFound{key: keyHash.String()}
+			return v, &ErrKeyNotFound{Key: keyHash.String()}
 		}
 		return v, err
 	}
@@ -98,15 +98,11 @@ func (b *Bigmap[K, V]) UnmarshalPrim(prim micheline.Prim) error {
 }
 
 type ErrKeyNotFound struct {
-	key string
+	Key string
 }
 
 func (e *ErrKeyNotFound) Error() string {
-	return "bigmap key not found: " + e.key
-}
-
-func (e *ErrKeyNotFound) Key() string {
-	return e.key
+	return "bigmap key not found: " + e.Key
 }
 
 func (e *ErrKeyNotFound) Is(target error) bool {
@@ -114,5 +110,5 @@ func (e *ErrKeyNotFound) Is(target error) bool {
 	if !ok {
 		return false
 	}
-	return e.key == other.key
+	return e.Key == other.Key
 }

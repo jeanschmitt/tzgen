@@ -56,6 +56,19 @@ func (o Option[T]) UnwrapOrZero() T {
 	return o.v
 }
 
+// SetSome replaces o's value with Some(v).
+func (o *Option[T]) SetSome(v T) {
+	o.v = v
+	o.isSome = true
+}
+
+// SetNone replaces o's value with None.
+func (o *Option[T]) SetNone() {
+	var zeroVal T
+	o.v = zeroVal
+	o.isSome = false
+}
+
 func (o Option[T]) IsSome() bool {
 	return o.isSome
 }
