@@ -77,6 +77,36 @@ func (o Option[T]) IsNone() bool {
 	return !o.isSome
 }
 
+// GetUntyped is the equivalent of Get, but it returns v as an empty interface
+// instead of T.
+//
+// This method is useful when generic parameters cannot be used, for example with reflection.
+func (o Option[T]) GetUntyped() (v any, isSome bool) {
+	return o.Get()
+}
+
+// SetUntyped is the equivalent of SetSome or SetNone, but uses v as an empty interface
+// instead of T.
+//
+// If v is nil, then the Option will be set to None.
+// Else, it will cast v to T and set the Option to Some.
+//
+// Returns an error if the cast failed.
+//
+// This method is useful when generic parameters cannot be used, for example with reflection.
+func (o *Option[T]) SetUntyped(v any) error {
+	if v == nil {
+		o.SetNone()
+		return nil
+	}
+	casted, ok := v.(T)
+	if !ok {
+		return errors.Errorf("bad type (want %T, got %T)", o.v, v)
+	}
+	o.SetSome(casted)
+	return nil
+}
+
 func (o Option[T]) MarshalPrim(optimized bool) (micheline.Prim, error) {
 	if o.isSome {
 		inner, err := MarshalPrim(o.v, optimized)
