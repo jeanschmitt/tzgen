@@ -81,6 +81,11 @@ func (b *Bigmap[K, V]) Get(ctx context.Context, key K) (v V, err error) {
 		return v, err
 	}
 
+	if len(prim.Args) > 2 {
+		prim.Type = micheline.PrimSequence
+		prim = prim.FoldPair()
+	}
+
 	if err = UnmarshalPrim(prim, &v); err != nil {
 		return v, err
 	}
