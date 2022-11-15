@@ -39,6 +39,7 @@ const (
 	TypeMap    = "map"
 	TypeBigmap = "big_map"
 	TypeOption = "option"
+	TypeLambda = "lambda"
 )
 
 const HashSize = md5.Size

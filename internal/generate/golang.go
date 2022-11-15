@@ -65,6 +65,8 @@ func goType(typ types.Type) string {
 		return fmt.Sprintf("bind.Bigmap[%s, %s]", goType(t.Key), goType(t.Value))
 	case *types.Struct:
 		return "*" + strcase.ToCamel(t.Name)
+	case *types.Lambda:
+		return "bind.Lambda"
 
 		// case types.Operation:
 		// case types.Contract:
@@ -99,6 +101,8 @@ func marshalPrimMethod(typ types.Type) string {
 		return "tzgoext.MarshalPrimSeq[" + goType(t.Type) + "](%s, tzgoext.MarshalAny)"
 	case *types.Struct:
 		return "%s.Prim()"
+	case *types.Lambda:
+		return "%s.Prim"
 
 	default:
 		// case *types.Operation:

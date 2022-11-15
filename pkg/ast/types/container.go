@@ -101,3 +101,16 @@ func (o *Option) Hash() []byte {
 func (Option) TypeName() string {
 	return TypeOption
 }
+
+type Lambda struct {
+	Param  Type
+	Return Type
+}
+
+func (l *Lambda) Hash() []byte {
+	return TypeHash([]byte(TypeLambda), l.Param.Hash(), l.Return.Hash())
+}
+
+func (Lambda) TypeName() string {
+	return TypeLambda
+}

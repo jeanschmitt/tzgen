@@ -17,9 +17,10 @@ import (
 
 // rootCmd represents the base command when called without any subcommands
 var rootCmd = &cobra.Command{
-	Use:     "tzgen",
-	Short:   "Generate Go bindings to a Tezos smart contract",
-	Version: Version,
+	Use:          "tzgen",
+	Short:        "Generate Go bindings to a Tezos smart contract",
+	Version:      Version,
+	SilenceUsage: true,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		src, err := getSrc()
 		if err != nil {

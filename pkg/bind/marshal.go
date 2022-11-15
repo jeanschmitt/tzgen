@@ -21,6 +21,8 @@ type PrimMarshaler interface {
 func MarshalPrim(v any, optimized bool) (micheline.Prim, error) {
 	// Handle types that we can process with a type switch
 	switch t := v.(type) {
+	case micheline.Prim:
+		return t, nil
 	case PrimMarshaler:
 		return t.MarshalPrim(optimized)
 	case *big.Int:

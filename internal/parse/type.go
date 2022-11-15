@@ -3,6 +3,7 @@ package parse
 import (
 	"blockwatch.cc/tzgo/micheline"
 	"github.com/jeanschmitt/tzgen/pkg/ast/types"
+	"github.com/pkg/errors"
 )
 
 func (p *parser) parseType(t *micheline.Typedef) (types.Type, error) {
@@ -64,7 +65,7 @@ func (p *parser) parseType(t *micheline.Typedef) (types.Type, error) {
 			return &types.Set{Type: itemType}, nil
 		}
 	}
-	if t.Type == types.TypeUnion || t.Type == types.TypeMap || t.Type == types.TypeBigmap {
+	if t.Type == types.TypeUnion || t.Type == types.TypeMap || t.Type == types.TypeBigmap || t.Type == types.TypeLambda {
 		type1, err := p.parseType(&t.Args[0])
 		if err != nil {
 			return nil, err
@@ -80,13 +81,15 @@ func (p *parser) parseType(t *micheline.Typedef) (types.Type, error) {
 			return &types.Map{Key: type1, Value: type2}, nil
 		case types.TypeBigmap:
 			return &types.Bigmap{Key: type1, Value: type2}, nil
+		case types.TypeLambda:
+			return &types.Lambda{Param: type1, Return: type2}, nil
 		}
 	}
 	if t.Type == types.TypeStruct {
 		return p.parseStruct(t, true)
 	}
 
-	return nil, nil
+	return nil, errors.Errorf("type %q is not supported", t.Type)
 }
 
 func (p *parser) parseStruct(typedef *micheline.Typedef, register bool) (*types.Struct, error) {

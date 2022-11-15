@@ -225,20 +225,6 @@ func unmarshalSlice(prim micheline.Prim, v reflect.Value) error {
 	return nil
 }
 
-//func UnmarshalParams(prim micheline.Prim, params ...any) error {
-//	i := 0
-//	err := prim.Walk(func(p micheline.Prim) error {
-//		if p.OpCode != micheline.D_PAIR {
-//			if err := UnmarshalPrim(p, params[i]); err != nil {
-//				return err
-//			}
-//			i++
-//		}
-//		return nil
-//	})
-//	return err
-//}
-
 // pre-computed reflect types
 var (
 	tBigInt      = reflect.TypeOf((*big.Int)(nil))
