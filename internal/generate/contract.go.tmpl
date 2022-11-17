@@ -43,6 +43,7 @@ type {{$contract}} struct {
 	bind.Contract
 	builder {{$contract}}Builder
 	rpc bind.RPC
+	script *micheline.Script
 }
 
 // {{$contract}}Session is a generated binding to a Tezos smart contract, that will
@@ -58,11 +59,19 @@ type {{$contract}}Builder struct{}
 
 // New{{$contract}} creates a new {{$contract}} handle, bound to the provided address
 // with the given rpc.
-func New{{$contract}}(address tezos.Address, client *rpc.Client) *{{$contract}} {
+//
+// Returns an error if the contract was not found at the given address.
+func New{{$contract}}(ctx context.Context, address tezos.Address, client *rpc.Client) (*{{$contract}}, error) {
+	script, err := client.GetContractScript(ctx, address)
+	if err != nil {
+		return nil, err
+	}
+
 	return &{{$contract}}{
 		Contract: contract.NewContract(address, client),
 		rpc: client,
-	}
+		script: script,
+	}, nil
 }
 
 // Session returns a new {{$contract}}Session with the configured rpc.CallOptions.
@@ -87,6 +96,7 @@ func {{$rc}} StorageAt(ctx context.Context, block rpc.BlockID) ({{type .Storage}
 	if err != nil {
 		return storage, errors.Wrap(err, "failed to get storage")
 	}
+	prim = micheline.NewSeq(prim.UnfoldPairRecursive({{$r}}.script.StorageType())...)
 	err = bind.UnmarshalPrim(prim, &storage)
 	if err != nil {
 		return storage, errors.Wrap(err, "failed to unmarshal storage")

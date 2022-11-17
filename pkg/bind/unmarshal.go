@@ -39,7 +39,6 @@ func UnmarshalPrim(prim micheline.Prim, v any) error {
 	if val.Kind() != reflect.Ptr || val.IsNil() {
 		return errors.New("v should be a non-nil pointer")
 	}
-	//val = val.Elem()
 
 	return unmarshalPrimVal(prim, val)
 }
@@ -55,6 +54,8 @@ func unmarshalPrimVal(prim micheline.Prim, val reflect.Value) error {
 	// Check PrimUnmarshaler interface first
 	if unmarshaler, ok := val.Interface().(micheline.PrimUnmarshaler); ok {
 		return unmarshaler.UnmarshalPrim(prim)
+	} else if unmarshaler, ok = val.Elem().Interface().(micheline.PrimUnmarshaler); ok {
+		return unmarshalPrimVal(prim, val.Elem())
 	}
 
 	// Check scalar and container types

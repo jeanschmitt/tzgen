@@ -5,7 +5,7 @@ import (
 	"text/template"
 )
 
-var Version = "v0.3.4"
+var Version = "v0.4.0"
 
 // versionCmd represents the version command
 var versionCmd = &cobra.Command{
