@@ -51,7 +51,7 @@ func Execute() {
 }
 
 const (
-	defaultEndpoint = "https://ghostnet.smartpy.io"
+	defaultEndpoint = "https://mainnet.smartpy.io"
 )
 
 var (
