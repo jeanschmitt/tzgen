@@ -16,7 +16,7 @@ go install github.com/jeanschmitt/tzgen@latest
 tzgen --name Hello --pkg contracts --address KT1K3ZqbYq1bCwpSPNX9xBgQd8CaYxRVXd4P -o ./contracts/Hello.go
 ```
 
-The endpoint is `https://ghostnet.smartpy.io` by default, but can be overridden with `--endpoint`.
+The endpoint is `https://mainnet.smartpy.io` by default, but can be overridden with `--endpoint`.
 
 ### From a micheline file
 

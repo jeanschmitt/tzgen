@@ -96,7 +96,9 @@ func {{$rc}} StorageAt(ctx context.Context, block rpc.BlockID) ({{type .Storage}
 	if err != nil {
 		return storage, errors.Wrap(err, "failed to get storage")
 	}
-	prim = micheline.NewSeq(prim.UnfoldPairRecursive({{$r}}.script.StorageType())...)
+	{{if eq .Storage.TypeName "struct" -}}
+		prim = micheline.NewSeq(prim.UnfoldPairRecursive({{$r}}.script.StorageType())...)
+	{{- end}}
 	err = bind.UnmarshalPrim(prim, &storage)
 	if err != nil {
 		return storage, errors.Wrap(err, "failed to unmarshal storage")

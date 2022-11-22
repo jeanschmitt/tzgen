@@ -130,6 +130,10 @@ func getSrc() ([]byte, error) {
 	}
 	defer res.Body.Close()
 
+	if res.StatusCode != http.StatusOK {
+		return nil, errors.Errorf("failed to get contract script at url %s: %v", u, res.Status)
+	}
+
 	return io.ReadAll(res.Body)
 }
 
