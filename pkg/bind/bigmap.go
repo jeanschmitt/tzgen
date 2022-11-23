@@ -4,6 +4,7 @@ import (
 	"blockwatch.cc/tzgo/micheline"
 	"blockwatch.cc/tzgo/rpc"
 	"context"
+	"fmt"
 	"github.com/pkg/errors"
 	"strconv"
 )
@@ -93,7 +94,7 @@ func (b *Bigmap[K, V]) Get(ctx context.Context, key K) (v V, err error) {
 	return v, nil
 }
 
-func (b *Bigmap[K, V]) String() string {
+func (b Bigmap[K, V]) String() string {
 	return "Bigmap#" + strconv.Itoa(int(b.id))
 }
 
@@ -107,7 +108,7 @@ type ErrKeyNotFound struct {
 }
 
 func (e *ErrKeyNotFound) Error() string {
-	return "bigmap key not found: " + e.Key
+	return fmt.Sprintf("bigmap key not found %q", e.Key)
 }
 
 func (e *ErrKeyNotFound) Is(target error) bool {

@@ -2,6 +2,7 @@ package bind
 
 import (
 	"blockwatch.cc/tzgo/micheline"
+	"fmt"
 	"github.com/pkg/errors"
 )
 
@@ -105,6 +106,13 @@ func (o *Option[T]) SetUntyped(v any) error {
 	}
 	o.SetSome(casted)
 	return nil
+}
+
+func (o Option[T]) String() string {
+	if o.isSome {
+		return fmt.Sprintf("Some(%v)", o.v)
+	}
+	return "None"
 }
 
 func (o Option[T]) MarshalPrim(optimized bool) (micheline.Prim, error) {
