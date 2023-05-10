@@ -1,12 +1,13 @@
 package bind
 
 import (
-	"blockwatch.cc/tzgo/micheline"
-	"blockwatch.cc/tzgo/tezos"
-	"github.com/pkg/errors"
 	"math/big"
 	"reflect"
 	"time"
+
+	"blockwatch.cc/tzgo/micheline"
+	"blockwatch.cc/tzgo/tezos"
+	"github.com/pkg/errors"
 )
 
 type PrimMarshaler interface {
@@ -43,7 +44,7 @@ func MarshalPrim(v any, optimized bool) (micheline.Prim, error) {
 		return micheline.NewString(t.Format(time.RFC3339)), nil
 	case tezos.Address:
 		if optimized {
-			return micheline.NewBytes(t.Bytes22()), nil
+			return micheline.NewAddress(t), nil
 		}
 		return micheline.NewString(t.String()), nil
 	case tezos.Key:

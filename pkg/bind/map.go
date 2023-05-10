@@ -1,14 +1,15 @@
 package bind
 
 import (
-	"blockwatch.cc/tzgo/micheline"
-	"blockwatch.cc/tzgo/tezos"
 	"crypto/sha256"
 	"fmt"
-	"github.com/pkg/errors"
 	"io"
 	"math/big"
 	"time"
+
+	"blockwatch.cc/tzgo/micheline"
+	"blockwatch.cc/tzgo/tezos"
+	"github.com/pkg/errors"
 )
 
 // Map is a map type used to interact with Tezos smart contracts.
@@ -146,18 +147,18 @@ type hashType [sha256.Size]byte
 // hashFunc
 //
 // Allowed types:
-//     - string
-//     - []byte
-//     - bool
-//     - *big.Int
-//     - time.Time
-//     - tezos.Address
-//     - tezos.Key
-//     - tezos.Signature
-//     - tezos.ChainIdHash
-//     - bind.Or
-//     - bind.Option
-//     - pair
+//   - string
+//   - []byte
+//   - bool
+//   - *big.Int
+//   - time.Time
+//   - tezos.Address
+//   - tezos.Key
+//   - tezos.Signature
+//   - tezos.ChainIdHash
+//   - bind.Or
+//   - bind.Option
+//   - pair
 func hashFunc(keyType any) func(any) hashType {
 	switch keyType.(type) {
 	case string:
@@ -176,7 +177,7 @@ func hashFunc(keyType any) func(any) hashType {
 	case time.Time:
 		return func(k any) hashType { return hashBytes(must(k.(time.Time).MarshalBinary())) }
 	case tezos.Address:
-		return func(k any) hashType { return hashBytes(k.(tezos.Address).Bytes()) }
+		return func(k any) hashType { return hashBytes(k.(tezos.Address).Hash()) }
 	case tezos.Key:
 		return func(k any) hashType { return hashBytes(k.(tezos.Key).Bytes()) }
 	case tezos.ChainIdHash:

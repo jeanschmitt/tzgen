@@ -3,7 +3,7 @@ module github.com/jeanschmitt/tzgen
 go 1.19
 
 require (
-	blockwatch.cc/tzgo v1.14.3-0.20221123095442-44d1c78b06bd
+	blockwatch.cc/tzgo v1.16.6
 	github.com/iancoleman/strcase v0.2.0
 	github.com/pkg/errors v0.9.1
 	github.com/spf13/cobra v1.6.1
