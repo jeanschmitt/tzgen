@@ -159,7 +159,7 @@ func {{$rc}} {{pascal .Name}}(ctx context.Context, opts *rpc.CallOptions, {{temp
 // {{pascal .Name}} generates `{{.Name}}` operation call.
 //
 // {{template "originalSignature" .}}
-func {{$rc}} {{pascal .Name}}Args({{template "entryParamsList" .}}) (*rpc.Receipt, error) {
+func {{$rc}} {{pascal .Name}}Args({{template "entryParamsList" .}}) (contract.CallArguments, error) {
 	params, err := {{$r}}.builder.{{pascal .Name}}({{range .Params}}{{camel .Name}},{{end}})
 	if err != nil {
 		return nil, err
