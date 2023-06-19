@@ -156,7 +156,7 @@ func {{$rc}} {{pascal .Name}}(ctx context.Context, opts *rpc.CallOptions, {{temp
 	return {{$r}}.Contract.Call(ctx, &contract.TxArgs{Params: params}, opts)
 }
 
-// {{pascal .Name}} generates `{{.Name}}` operation call.
+// {{pascal .Name}} generates `{{.Name}}` operation args.
 //
 // {{template "originalSignature" .}}
 func {{$rc}} {{pascal .Name}}Args({{template "entryParamsList" .}}) (contract.CallArguments, error) {
