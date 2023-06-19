@@ -11,6 +11,7 @@ import (
 type Contract interface {
 	Address() tezos.Address
 	Call(ctx context.Context, args contract.CallArguments, opts *rpc.CallOptions) (*rpc.Receipt, error)
+	CallMulti(ctx context.Context, args []contract.CallArguments, opts *rpc.CallOptions) (*rpc.Receipt, error)
 	RunView(ctx context.Context, name string, args micheline.Prim) (micheline.Prim, error)
 }
 
