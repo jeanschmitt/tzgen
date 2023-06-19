@@ -156,19 +156,15 @@ func {{$rc}} {{pascal .Name}}(ctx context.Context, opts *rpc.CallOptions, {{temp
 	return {{$r}}.Contract.Call(ctx, &contract.TxArgs{Params: params}, opts)
 }
 
-// {{pascal .Name}} makes a call to the `{{.Name}}` contract entry.
+// {{pascal .Name}} generates `{{.Name}}` operation call.
 //
 // {{template "originalSignature" .}}
-func {{$rc}} {{pascal .Name}}Batch(ctx context.Context, opts *rpc.CallOptions, {{template "entryParamsListBatch" .}}) (*rpc.Receipt, error) {
-    var callArgs []contract.CallArguments
-    for i := range meta {
-        params, err := {{$r}}.builder.{{pascal .Name}}({{range .Params}}{{camel .Name}},{{end}})
-        if err != nil {
-            return nil, err
-        }
-        callArgs = append(callArgs, &contract.TxArgs{Params: params})
+func {{$rc}} {{pascal .Name}}Args({{template "entryParamsList" .}}) (*rpc.Receipt, error) {
+	params, err := {{$r}}.builder.{{pascal .Name}}({{range .Params}}{{camel .Name}},{{end}})
+	if err != nil {
+		return nil, err
 	}
-	return {{$r}}.Contract.CallMulti(ctx, callArgs, opts)
+	return &contract.TxArgs{Params: params}, nil
 }
 
 // {{pascal .Name}} makes a call to the `{{.Name}}` contract entry.
