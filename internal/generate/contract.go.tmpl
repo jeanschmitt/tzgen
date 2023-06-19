@@ -2,10 +2,6 @@
     {{- range .Params}}{{camel .Name}} {{type .Type}},{{end -}}
 {{- end -}}
 
-{{- define "entryParamsListBatch" -}}
-    {{- range .Params}}{{camel .Name}} []{{type .Type}},{{end -}}
-{{- end -}}
-
 {{- define "originalSignature" -}}
     {{- $nArgs := len .Params -}}
 	{{.Name}}({{range $i, $param := .Params}}{{$param.Name}} {{$param.OriginalType}}{{if lt $i (sub $nArgs 1)}}, {{end}}{{end}})
