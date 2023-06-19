@@ -2,6 +2,10 @@
     {{- range .Params}}{{camel .Name}} {{type .Type}},{{end -}}
 {{- end -}}
 
+{{- define "entryParamsListBatch" -}}
+    {{- range .Params}}{{camel .Name}} []{{type .Type}},{{end -}}
+{{- end -}}
+
 {{- define "originalSignature" -}}
     {{- $nArgs := len .Params -}}
 	{{.Name}}({{range $i, $param := .Params}}{{$param.Name}} {{$param.OriginalType}}{{if lt $i (sub $nArgs 1)}}, {{end}}{{end}})
@@ -150,6 +154,21 @@ func {{$rc}} {{pascal .Name}}(ctx context.Context, opts *rpc.CallOptions, {{temp
 		return nil, err
 	}
 	return {{$r}}.Contract.Call(ctx, &contract.TxArgs{Params: params}, opts)
+}
+
+// {{pascal .Name}} makes a call to the `{{.Name}}` contract entry.
+//
+// {{template "originalSignature" .}}
+func {{$rc}} {{pascal .Name}}Batch(ctx context.Context, opts *rpc.CallOptions, {{template "entryParamsListBatch" .}}) (*rpc.Receipt, error) {
+    var callArgs []contract.CallArguments
+    for i := range meta {
+        params, err := {{$r}}.builder.{{pascal .Name}}({{range .Params}}{{camel .Name}},{{end}})
+        if err != nil {
+            return nil, err
+        }
+        callArgs = append(callArgs, &contract.TxArgs{Params: params})
+	}
+	return {{$r}}.Contract.CallMulti(ctx, callArgs, opts)
 }
 
 // {{pascal .Name}} makes a call to the `{{.Name}}` contract entry.
